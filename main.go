@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -34,6 +35,7 @@ type App struct {
 	width  int
 	height int
 	dir    int
+	field  [][]byte
 }
 
 func main() {
@@ -49,12 +51,15 @@ func NewApp(width, height int) *App {
 		width:  width,
 		height: height,
 		dir:    1,
+		field:  [][]byte{},
 	}
 }
 
 func (a *App) Start(ctx context.Context) {
 	cmds, errc := a.readCommands(ctx)
 	ticker := time.NewTicker(200 * time.Millisecond) // todo: custom dynamic ticker
+
+	a.initField()
 
 	count := 0
 
@@ -65,6 +70,7 @@ func (a *App) Start(ctx context.Context) {
 
 			switch cmd {
 			case Quit:
+				clearScreen()
 				fmt.Println("Bye")
 				return
 			case Left:
@@ -82,6 +88,7 @@ func (a *App) Start(ctx context.Context) {
 			a.render()
 
 		case <-ctx.Done():
+			clearScreen()
 			fmt.Println("bye")
 			return
 		case err := <-errc:
@@ -91,8 +98,29 @@ func (a *App) Start(ctx context.Context) {
 	}
 }
 
-func (a *App) render() {
+func (a *App) initField() {
+	for i := 0; i < a.height; i++ {
+		row := []byte{'<', '!'}
+		row = append(row, bytes.Repeat([]byte{' ', '.'}, a.width)...)
+		row = append(row, '!', '>')
+		a.field = append(a.field, row)
+	}
 
+	row := []byte{'<', '!'}
+	row = append(row, bytes.Repeat([]byte{'=', '='}, a.width)...)
+	row = append(row, '!', '>')
+	a.field = append(a.field, row)
+
+	row = []byte{'<', '!'}
+	row = append(row, bytes.Repeat([]byte{'\\', '/'}, a.width)...)
+	row = append(row, '!', '>')
+	a.field = append(a.field, row)
+}
+
+func (a *App) render() {
+	for i := 0; i < len(a.field); i++ {
+		fmt.Println(string(a.field[i]))
+	}
 }
 
 func (a *App) readCommands(ctx context.Context) (<-chan Command, <-chan error) {
