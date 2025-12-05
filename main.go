@@ -31,12 +31,8 @@ func (c Command) String() string {
 	return cmdNames[c]
 }
 
-type App struct {
-	width  int
-	height int
-	dir    int
-	field  [][]byte
-}
+const OffsetTop = 0 // todo: add empty line on top
+const OffsetLeft = 2
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -44,6 +40,53 @@ func main() {
 
 	app := NewApp(10, 20)
 	app.Start(ctx)
+}
+
+type Point struct {
+	x, y    int
+	bracket byte
+}
+
+type PinTetro struct {
+	Points [8]Point
+}
+
+func NewPinTetro() *PinTetro {
+	return &PinTetro{
+		Points: [8]Point{
+			{OffsetLeft + 4*2, OffsetTop, '['},
+			{OffsetLeft + 4*2 + 1, OffsetTop, ']'},
+			{OffsetLeft + 3*2, OffsetTop + 1, '['},
+			{OffsetLeft + 3*2 + 1, OffsetTop + 1, ']'},
+			{OffsetLeft + 4*2, OffsetTop + 1, '['},
+			{OffsetLeft + 4*2 + 1, OffsetTop + 1, ']'},
+			{OffsetLeft + 5*2, OffsetTop + 1, '['},
+			{OffsetLeft + 5*2 + 1, OffsetTop + 1, ']'},
+		},
+	}
+}
+
+func (m *PinTetro) Rotate() {
+
+}
+
+func (m *PinTetro) Draw(field [][]byte) {
+	for _, p := range m.Points {
+		field[p.y][p.x] = p.bracket
+	}
+}
+
+func (m *PinTetro) MoveDown() {
+	for i := 0; i < 8; i++ {
+		m.Points[i].y += 1
+	}
+}
+
+type App struct {
+	width  int
+	height int
+	dir    int
+	field  [][]byte
 }
 
 func NewApp(width, height int) *App {
@@ -57,11 +100,13 @@ func NewApp(width, height int) *App {
 
 func (a *App) Start(ctx context.Context) {
 	cmds, errc := a.readCommands(ctx)
-	ticker := time.NewTicker(200 * time.Millisecond) // todo: custom dynamic ticker
+	ticker := time.NewTicker(500 * time.Millisecond) // todo: custom dynamic ticker
 
-	a.initField()
+	a.DrawField()
 
-	count := 0
+	tickCount := 0
+
+	tetro := NewPinTetro()
 
 	for {
 		select {
@@ -83,9 +128,12 @@ func (a *App) Start(ctx context.Context) {
 
 		case <-ticker.C:
 			clearScreen()
-			log("tick: %d", count)
-			count++
+			log("tick: %d", tickCount)
+			tickCount++
+			a.DrawField()
+			tetro.Draw(a.field)
 			a.render()
+			tetro.MoveDown()
 
 		case <-ctx.Done():
 			clearScreen()
@@ -98,7 +146,9 @@ func (a *App) Start(ctx context.Context) {
 	}
 }
 
-func (a *App) initField() {
+func (a *App) DrawField() {
+	// todo: Extract to struct and make convention to access `field [][]byte` for Draw method
+	a.field = a.field[0:0]
 	for i := 0; i < a.height; i++ {
 		row := []byte{'<', '!'}
 		row = append(row, bytes.Repeat([]byte{' ', '.'}, a.width)...)
@@ -119,7 +169,7 @@ func (a *App) initField() {
 
 func (a *App) render() {
 	for i := 0; i < len(a.field); i++ {
-		fmt.Println(string(a.field[i]))
+		fmt.Printf("%s\n", a.field[i])
 	}
 }
 
