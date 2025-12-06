@@ -48,7 +48,8 @@ type Point struct {
 }
 
 type PinTetro struct {
-	Points [8]Point
+	rotationPos int
+	Points      [8]Point
 }
 
 func NewPinTetro() *PinTetro {
@@ -66,19 +67,42 @@ func NewPinTetro() *PinTetro {
 	}
 }
 
-func (m *PinTetro) Rotate() {
+func (t *PinTetro) Rotate() {
+	type Dir struct {
+		x, y int
+	}
+	type Rule struct {
+		Dirs [4]Dir
+	}
 
+	rulesByState := [4]Rule{
+		{Dirs: [4]Dir{{1, 1}, {1, -1}, {0, 0}, {-1, 1}}},
+		{Dirs: [4]Dir{{-1, 1}, {1, 1}, {0, 0}, {-1, -1}}},
+		{Dirs: [4]Dir{{-1, -1}, {-1, 1}, {0, 0}, {1, -1}}},
+		{Dirs: [4]Dir{{1, -1}, {-1, -1}, {0, 0}, {1, 1}}},
+	}
+
+	rule := rulesByState[t.rotationPos]
+
+	for i := 0; i < len(t.Points); i += 2 {
+		t.Points[i].x += rule.Dirs[i/2].x * 2
+		t.Points[i+1].x += rule.Dirs[i/2].x * 2
+		t.Points[i].y += rule.Dirs[i/2].y
+		t.Points[i+1].y += rule.Dirs[i/2].y
+	}
+
+	t.rotationPos = (t.rotationPos + 1) % 4
 }
 
-func (m *PinTetro) Draw(field [][]byte) {
-	for _, p := range m.Points {
+func (t *PinTetro) Draw(field [][]byte) {
+	for _, p := range t.Points {
 		field[p.y][p.x] = p.bracket
 	}
 }
 
-func (m *PinTetro) MoveDown() {
-	for i := 0; i < 8; i++ {
-		m.Points[i].y += 1
+func (t *PinTetro) MoveDown() {
+	for i := range 8 {
+		t.Points[i].y += 1
 	}
 }
 
@@ -103,10 +127,8 @@ func (a *App) Start(ctx context.Context) {
 	ticker := time.NewTicker(500 * time.Millisecond) // todo: custom dynamic ticker
 
 	a.DrawField()
-
-	tickCount := 0
-
 	tetro := NewPinTetro()
+	tickCount := 0
 
 	for {
 		select {
@@ -122,6 +144,7 @@ func (a *App) Start(ctx context.Context) {
 				// a.dir = 1
 			case Rotate:
 				// a.dir = -1
+				tetro.Rotate()
 			case Right:
 				// a.dir = 1
 			}
