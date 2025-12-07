@@ -106,6 +106,19 @@ func (t *PinTetro) MoveDown() {
 	}
 }
 
+func (t *PinTetro) MoveHorizontaly(dir int) {
+	for _, p := range t.Points {
+		next := p.x + dir*2
+		if next < OffsetLeft || next > OffsetLeft+20 {
+			return
+		}
+	}
+
+	for i := range 8 {
+		t.Points[i].x += dir * 2
+	}
+}
+
 type App struct {
 	width  int
 	height int
@@ -120,6 +133,16 @@ func NewApp(width, height int) *App {
 		dir:    1,
 		field:  [][]byte{},
 	}
+}
+
+type Tetro interface {
+	MoveHorizontaly(dir int)
+	MoveDown()
+	Rotate()
+}
+
+type Drawer interface {
+	Draw(field [][]byte)
 }
 
 func (a *App) Start(ctx context.Context) {
@@ -142,19 +165,19 @@ func (a *App) Start(ctx context.Context) {
 				return
 			case Rotate:
 				tetro.Rotate()
-				a.DrawField()
-				tetro.Draw(a.field)
-				clearScreen()
-				a.render()
+				a.Rerender(tetro)
+			case Left:
+				tetro.MoveHorizontaly(-1)
+				a.Rerender(tetro)
+			case Right:
+				tetro.MoveHorizontaly(1)
+				a.Rerender(tetro)
 			}
 
 		case <-ticker.C:
-			clearScreen()
 			log("tick: %d", tickCount)
 			tickCount++
-			a.DrawField()
-			tetro.Draw(a.field)
-			a.render()
+			a.Rerender(tetro)
 			tetro.MoveDown()
 
 		case <-ctx.Done():
@@ -166,6 +189,13 @@ func (a *App) Start(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (a *App) Rerender(drawer Drawer) {
+	a.DrawField()
+	drawer.Draw(a.field)
+	clearScreen()
+	a.render()
 }
 
 func (a *App) DrawField() {
