@@ -140,13 +140,12 @@ func (a *App) Start(ctx context.Context) {
 				clearScreen()
 				fmt.Println("Bye")
 				return
-			case Left:
-				// a.dir = 1
 			case Rotate:
-				// a.dir = -1
 				tetro.Rotate()
-			case Right:
-				// a.dir = 1
+				a.DrawField()
+				tetro.Draw(a.field)
+				clearScreen()
+				a.render()
 			}
 
 		case <-ticker.C:
