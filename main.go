@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -31,14 +32,14 @@ func (c Command) String() string {
 	return cmdNames[c]
 }
 
-const OffsetTop = 0 // todo: add empty line on top
+const OffsetTop = 1
 const OffsetLeft = 2
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	app := NewApp(10, 20)
+	app := NewApp(10, 20, &Cursor{})
 	app.Start(ctx)
 }
 
@@ -50,9 +51,10 @@ type Point struct {
 type PinTetro struct {
 	rotationPos int
 	Points      [8]Point
+	cursor      *Cursor
 }
 
-func NewPinTetro() *PinTetro {
+func NewPinTetro(cursor *Cursor) *PinTetro {
 	return &PinTetro{
 		Points: [8]Point{
 			{OffsetLeft + 4*2, OffsetTop, '['},
@@ -64,6 +66,7 @@ func NewPinTetro() *PinTetro {
 			{OffsetLeft + 5*2, OffsetTop + 1, '['},
 			{OffsetLeft + 5*2 + 1, OffsetTop + 1, ']'},
 		},
+		cursor: cursor,
 	}
 }
 
@@ -94,13 +97,26 @@ func (t *PinTetro) Rotate() {
 	t.rotationPos = (t.rotationPos + 1) % 4
 }
 
-func (t *PinTetro) Draw(field [][]byte) {
+// todo: Extract Clear and Draw somewhere, it's too much responsibility
+func (t *PinTetro) Clear() {
 	for _, p := range t.Points {
-		field[p.y][p.x] = p.bracket
+		empty := ' '
+		if p.bracket == ']' {
+			empty = '.'
+		}
+		t.cursor.SetPos(p.y+1, p.x+1)
+		fmt.Printf("%c", empty)
 	}
 }
 
-func (t *PinTetro) MoveDown() {
+func (t *PinTetro) Draw(field [][]byte) {
+	for _, p := range t.Points {
+		t.cursor.SetPos(p.y+1, p.x+1)
+		fmt.Printf("%c", p.bracket)
+	}
+}
+
+func (t *PinTetro) MoveDown(field [][]byte) {
 	for i := range 8 {
 		t.Points[i].y += 1
 	}
@@ -122,16 +138,16 @@ func (t *PinTetro) MoveHorizontaly(dir int) {
 type App struct {
 	width  int
 	height int
-	dir    int
 	field  [][]byte
+	cursor *Cursor
 }
 
-func NewApp(width, height int) *App {
+func NewApp(width, height int, cursor *Cursor) *App {
 	return &App{
 		width:  width,
 		height: height,
-		dir:    1,
 		field:  [][]byte{},
+		cursor: cursor,
 	}
 }
 
@@ -141,16 +157,29 @@ type Tetro interface {
 	Rotate()
 }
 
-type Drawer interface {
+type Drawer interface { // todo: Remove?
 	Draw(field [][]byte)
+}
+
+type Cursor struct {
+}
+
+// line and column starts from 1 (not zero)
+func (c *Cursor) SetPos(line, column int) {
+	fmt.Printf("\033[%d;%dH", line, column)
 }
 
 func (a *App) Start(ctx context.Context) {
 	cmds, errc := a.readCommands(ctx)
 	ticker := time.NewTicker(500 * time.Millisecond) // todo: custom dynamic ticker
 
+	clearScreen()
 	a.DrawField()
-	tetro := NewPinTetro()
+	a.render()
+
+	tetro := NewPinTetro(a.cursor)
+	tetro.Draw(a.field)
+
 	tickCount := 0
 
 	for {
@@ -160,28 +189,32 @@ func (a *App) Start(ctx context.Context) {
 
 			switch cmd {
 			case Quit:
-				clearScreen()
+				a.cursor.SetPos(a.height+3, 0)
 				fmt.Println("Bye")
 				return
 			case Rotate:
+				tetro.Clear()
 				tetro.Rotate()
-				a.Rerender(tetro)
+				tetro.Draw(a.field)
 			case Left:
+				tetro.Clear()
 				tetro.MoveHorizontaly(-1)
-				a.Rerender(tetro)
+				tetro.Draw(a.field)
 			case Right:
+				tetro.Clear()
 				tetro.MoveHorizontaly(1)
-				a.Rerender(tetro)
+				tetro.Draw(a.field)
 			}
 
 		case <-ticker.C:
 			log("tick: %d", tickCount)
 			tickCount++
-			a.Rerender(tetro)
-			tetro.MoveDown()
+			tetro.Clear()
+			tetro.MoveDown(a.field)
+			tetro.Draw(a.field)
 
 		case <-ctx.Done():
-			clearScreen()
+			a.cursor.SetPos(a.height+3, 0)
 			fmt.Println("bye")
 			return
 		case err := <-errc:
@@ -200,7 +233,6 @@ func (a *App) Rerender(drawer Drawer) {
 
 func (a *App) DrawField() {
 	// todo: Extract to struct and make convention to access `field [][]byte` for Draw method
-	a.field = a.field[0:0]
 	for i := 0; i < a.height; i++ {
 		row := []byte{'<', '!'}
 		row = append(row, bytes.Repeat([]byte{' ', '.'}, a.width)...)
@@ -220,7 +252,8 @@ func (a *App) DrawField() {
 }
 
 func (a *App) render() {
-	for i := 0; i < len(a.field); i++ {
+	fmt.Printf("%s\n", strings.Repeat("  ", a.width+4))
+	for i := 1; i < len(a.field); i++ {
 		fmt.Printf("%s\n", a.field[i])
 	}
 }
