@@ -109,14 +109,14 @@ func (t *PinTetro) Clear() {
 	}
 }
 
-func (t *PinTetro) Draw(field [][]byte) {
+func (t *PinTetro) Draw() {
 	for _, p := range t.Points {
 		t.cursor.SetPos(p.y+1, p.x+1)
 		fmt.Printf("%c", p.bracket)
 	}
 }
 
-func (t *PinTetro) MoveDown(field [][]byte) {
+func (t *PinTetro) MoveDown() {
 	for i := range 8 {
 		t.Points[i].y += 1
 	}
@@ -133,6 +133,22 @@ func (t *PinTetro) MoveHorizontaly(dir int) {
 	for i := range 8 {
 		t.Points[i].x += dir * 2
 	}
+}
+
+func (t *PinTetro) Cement(field [][]byte) {
+	for _, p := range t.Points {
+		field[p.y][p.x] = p.bracket
+	}
+}
+
+func (t *PinTetro) IsLanded(field [][]byte) bool {
+	for _, p := range t.Points {
+		nextPoint := field[p.y+1][p.x]
+		if p.y == 20 || nextPoint == '[' || nextPoint == ']' {
+			return true
+		}
+	}
+	return false
 }
 
 type App struct {
@@ -171,14 +187,14 @@ func (c *Cursor) SetPos(line, column int) {
 
 func (a *App) Start(ctx context.Context) {
 	cmds, errc := a.readCommands(ctx)
-	ticker := time.NewTicker(500 * time.Millisecond) // todo: custom dynamic ticker
+	ticker := time.NewTicker(500 * time.Millisecond) // todo: custom accelerating ticker
 
 	clearScreen()
 	a.DrawField()
 	a.render()
 
 	tetro := NewPinTetro(a.cursor)
-	tetro.Draw(a.field)
+	tetro.Draw()
 
 	tickCount := 0
 
@@ -195,23 +211,28 @@ func (a *App) Start(ctx context.Context) {
 			case Rotate:
 				tetro.Clear()
 				tetro.Rotate()
-				tetro.Draw(a.field)
+				tetro.Draw()
 			case Left:
 				tetro.Clear()
 				tetro.MoveHorizontaly(-1)
-				tetro.Draw(a.field)
+				tetro.Draw()
 			case Right:
 				tetro.Clear()
 				tetro.MoveHorizontaly(1)
-				tetro.Draw(a.field)
+				tetro.Draw()
 			}
 
 		case <-ticker.C:
 			log("tick: %d", tickCount)
 			tickCount++
+			if tetro.IsLanded(a.field) {
+				log("is landed")
+				tetro.Cement(a.field)
+				tetro = a.NextTetro()
+			}
 			tetro.Clear()
-			tetro.MoveDown(a.field)
-			tetro.Draw(a.field)
+			tetro.MoveDown()
+			tetro.Draw()
 
 		case <-ctx.Done():
 			a.cursor.SetPos(a.height+3, 0)
@@ -224,6 +245,11 @@ func (a *App) Start(ctx context.Context) {
 	}
 }
 
+// todo: impl
+func (a *App) NextTetro() *PinTetro {
+	return NewPinTetro(a.cursor)
+}
+
 func (a *App) Rerender(drawer Drawer) {
 	a.DrawField()
 	drawer.Draw(a.field)
@@ -233,7 +259,7 @@ func (a *App) Rerender(drawer Drawer) {
 
 func (a *App) DrawField() {
 	// todo: Extract to struct and make convention to access `field [][]byte` for Draw method
-	for i := 0; i < a.height; i++ {
+	for i := 0; i <= a.height; i++ {
 		row := []byte{'<', '!'}
 		row = append(row, bytes.Repeat([]byte{' ', '.'}, a.width)...)
 		row = append(row, '!', '>')
