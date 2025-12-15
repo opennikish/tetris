@@ -51,10 +51,9 @@ type Point struct {
 type PinTetro struct {
 	rotationPos int
 	Points      [8]Point
-	cursor      *Cursor
 }
 
-func NewPinTetro(cursor *Cursor) *PinTetro {
+func NewPinTetro() *PinTetro {
 	return &PinTetro{
 		Points: [8]Point{
 			{OffsetLeft + 4*2, OffsetTop, '['},
@@ -66,7 +65,6 @@ func NewPinTetro(cursor *Cursor) *PinTetro {
 			{OffsetLeft + 5*2, OffsetTop + 1, '['},
 			{OffsetLeft + 5*2 + 1, OffsetTop + 1, ']'},
 		},
-		cursor: cursor,
 	}
 }
 
@@ -98,20 +96,20 @@ func (t *PinTetro) Rotate() {
 }
 
 // todo: Extract Clear and Draw somewhere, it's too much responsibility
-func (t *PinTetro) Clear() {
+func (t *PinTetro) Clear(cursor *Cursor) {
 	for _, p := range t.Points {
 		empty := ' '
 		if p.bracket == ']' {
 			empty = '.'
 		}
-		t.cursor.SetPos(p.y+1, p.x+1)
+		cursor.SetPos(p.y+1, p.x+1)
 		fmt.Printf("%c", empty)
 	}
 }
 
-func (t *PinTetro) Draw() {
+func (t *PinTetro) Draw(cursor *Cursor) {
 	for _, p := range t.Points {
-		t.cursor.SetPos(p.y+1, p.x+1)
+		cursor.SetPos(p.y+1, p.x+1)
 		fmt.Printf("%c", p.bracket)
 	}
 }
@@ -180,7 +178,8 @@ type Drawer interface { // todo: Remove?
 type Cursor struct {
 }
 
-// line and column starts from 1 (not zero)
+// SetPos send escape sequence to the stdout.
+// The line and column starts from 1 (not from 0).
 func (c *Cursor) SetPos(line, column int) {
 	fmt.Printf("\033[%d;%dH", line, column)
 }
@@ -193,8 +192,8 @@ func (a *App) Start(ctx context.Context) {
 	a.DrawField()
 	a.render()
 
-	tetro := NewPinTetro(a.cursor)
-	tetro.Draw()
+	tetro := a.NextTetro()
+	tetro.Draw(a.cursor)
 
 	tickCount := 0
 
@@ -205,21 +204,21 @@ func (a *App) Start(ctx context.Context) {
 
 			switch cmd {
 			case Quit:
-				a.cursor.SetPos(a.height+3, 0)
+				a.cursor.SetPos(a.height+4, 0)
 				fmt.Println("Bye")
 				return
 			case Rotate:
-				tetro.Clear()
+				tetro.Clear(a.cursor)
 				tetro.Rotate()
-				tetro.Draw()
+				tetro.Draw(a.cursor)
 			case Left:
-				tetro.Clear()
+				tetro.Clear(a.cursor)
 				tetro.MoveHorizontaly(-1)
-				tetro.Draw()
+				tetro.Draw(a.cursor)
 			case Right:
-				tetro.Clear()
+				tetro.Clear(a.cursor)
 				tetro.MoveHorizontaly(1)
-				tetro.Draw()
+				tetro.Draw(a.cursor)
 			}
 
 		case <-ticker.C:
@@ -230,12 +229,12 @@ func (a *App) Start(ctx context.Context) {
 				tetro.Cement(a.field)
 				tetro = a.NextTetro()
 			}
-			tetro.Clear()
+			tetro.Clear(a.cursor)
 			tetro.MoveDown()
-			tetro.Draw()
+			tetro.Draw(a.cursor)
 
 		case <-ctx.Done():
-			a.cursor.SetPos(a.height+3, 0)
+			a.cursor.SetPos(a.height+4, 0)
 			fmt.Println("bye")
 			return
 		case err := <-errc:
@@ -247,7 +246,7 @@ func (a *App) Start(ctx context.Context) {
 
 // todo: impl
 func (a *App) NextTetro() *PinTetro {
-	return NewPinTetro(a.cursor)
+	return NewPinTetro()
 }
 
 func (a *App) Rerender(drawer Drawer) {
