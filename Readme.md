@@ -2,6 +2,7 @@
 
 ### Dev
 
+Run
 ```
 # Terminal 1:
 go run main.go 2> tmp.log
@@ -10,3 +11,7 @@ go run main.go 2> tmp.log
 echo "" > tmp.log && tail -f tmp.log
 ```
 
+Run tests:
+```
+go test main.go main_test.go
+```
