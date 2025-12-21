@@ -74,9 +74,8 @@ func TestHorizontalMoveDoesNotCrossWalls(t *testing.T) {
 	actual := stdout.String()
 	eq(t, expected, actual)
 
-	for range 10 {
-		cmdController.PressLeft()
-	}
+	cmdController.PressLeft(10)
+
 	time.Sleep(1 * time.Millisecond)
 	expected = `                        
 <! . . . . . . . . . .!>
@@ -105,9 +104,8 @@ func TestHorizontalMoveDoesNotCrossWalls(t *testing.T) {
 	actual = stdout.String()
 	eq(t, expected, actual)
 
-	for range 10 {
-		cmdController.PressRight()
-	}
+	cmdController.PressRight(10)
+
 	time.Sleep(1 * time.Millisecond)
 	expected = `                        
 <! . . . . . . . . . .!>
@@ -198,7 +196,7 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 	eq(t, expected, actual)
 
 	ticker.Tick(1)
-	cmdController.PressRotate()
+	cmdController.PressRotate(1)
 	time.Sleep(1 * time.Millisecond)
 	expected = `                        
 <! . . . . . . . . . .!>
@@ -228,7 +226,7 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 	eq(t, expected, actual)
 
 	ticker.Tick(1)
-	cmdController.PressRotate()
+	cmdController.PressRotate(1)
 	time.Sleep(1 * time.Millisecond)
 	expected = `                        
 <! . . . . . . . . . .!>
@@ -258,7 +256,7 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 	eq(t, expected, actual)
 
 	ticker.Tick(1)
-	cmdController.PressRotate()
+	cmdController.PressRotate(1)
 	time.Sleep(1 * time.Millisecond)
 	expected = `                        
 <! . . . . . . . . . .!>
@@ -287,7 +285,7 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 	actual = stdout.String()
 	eq(t, expected, actual)
 
-	cmdController.PressRotate()
+	cmdController.PressRotate(1)
 	time.Sleep(1 * time.Millisecond)
 	expected = `                        
 <! . . . . . . . . . .!>
@@ -434,6 +432,187 @@ func TestCementAfterFallDownToTheGroundOrAnotherTetromino(t *testing.T) {
 	eq(t, expected, actual)
 }
 
+func TestActiveTetrominoDoesNotCrossCementedTetrominos(t *testing.T) {
+	stdout := NewScreenBuffer(25)
+	stdin, stdinWriter := io.Pipe()
+	defer stdinWriter.Close()
+
+	ticker := NewTestTicker()
+
+	app := NewApp(
+		10,
+		20,
+		&Cursor{Stdout: stdout},
+		stdout,
+		stdin,
+		func(cmd string, args ...string) error { return nil },
+		commandReader,
+		ticker,
+	)
+
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	t.Cleanup(cancel)
+
+	go func() {
+		err := app.Start(ctx)
+		if err != nil {
+			log("app.Start() returned err: %s", err)
+		}
+	}()
+
+	cmdController := NewCommandController(stdinWriter)
+
+	ticker.Tick(19)
+	time.Sleep(2 * time.Millisecond)
+	expected := `                        
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . .[] . . . . .!>
+<! . . .[][][] . . . .!>
+<!====================!>
+<!\/\/\/\/\/\/\/\/\/\/!>
+`
+	actual := stdout.String()
+	eq(t, expected, actual)
+
+	ticker.Tick(15)
+	cmdController.PressRotate(2)
+	ticker.Tick(1)
+	time.Sleep(2 * time.Millisecond)
+	expected = `                        
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . .[][][] . . . .!>
+<! . . . .[] . . . . .!>
+<! . . . .[] . . . . .!>
+<! . . .[][][] . . . .!>
+<!====================!>
+<!\/\/\/\/\/\/\/\/\/\/!>
+`
+	actual = stdout.String()
+	eq(t, expected, actual)
+
+	ticker.Tick(1)
+	cmdController.PressRight(3)
+	time.Sleep(2 * time.Millisecond)
+	expected = `                        
+<! . . . . . . .[] . .!>
+<! . . . . . .[][][] .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . .[][][] . . . .!>
+<! . . . .[] . . . . .!>
+<! . . . .[] . . . . .!>
+<! . . .[][][] . . . .!>
+<!====================!>
+<!\/\/\/\/\/\/\/\/\/\/!>
+`
+	actual = stdout.String()
+	eq(t, expected, actual)
+
+	ticker.Tick(17)
+	time.Sleep(2 * time.Millisecond)
+	expected = `                        
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . .[][][] . . . .!>
+<! . . . .[] . .[] . .!>
+<! . . . .[] .[][][] .!>
+<! . . .[][][] . . . .!>
+<!====================!>
+<!\/\/\/\/\/\/\/\/\/\/!>
+`
+	actual = stdout.String()
+	eq(t, expected, actual)
+
+	// todo: Fix
+	cmdController.PressLeft(10)
+	time.Sleep(2 * time.Millisecond)
+	expected = `                        
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . .[][][] . . . .!>
+<! . . . .[] .[] . . .!>
+<! . . . .[][][][] . .!>
+<! . . .[][][] . . . .!>
+<!====================!>
+<!\/\/\/\/\/\/\/\/\/\/!>
+`
+	actual = stdout.String()
+	eq(t, expected, actual)
+}
+
 func eq[T comparable](t *testing.T, expected, actual T) {
 	if expected != actual {
 		t.Fatalf(fmt.Sprintf("expected: %v got: %v", expected, actual))
@@ -535,18 +714,26 @@ func NewCommandController(stdinWriter io.Writer) *CommandController {
 	return &CommandController{stdinWriter: stdinWriter}
 }
 
-func (c *CommandController) PressLeft() {
-	c.stdinWriter.Write([]byte{27, 91, 68})
+func (c *CommandController) PressLeft(n int) {
+	for range n {
+		c.stdinWriter.Write([]byte{27, 91, 68})
+	}
 }
 
-func (c *CommandController) PressRight() {
-	c.stdinWriter.Write([]byte{27, 91, 67})
+func (c *CommandController) PressRight(n int) {
+	for range n {
+		c.stdinWriter.Write([]byte{27, 91, 67})
+	}
 }
 
-func (c *CommandController) PressRotate() {
-	c.stdinWriter.Write([]byte(" "))
+func (c *CommandController) PressRotate(n int) {
+	for range n {
+		c.stdinWriter.Write([]byte(" "))
+	}
 }
 
-func (c *CommandController) PressQuite() {
-	c.stdinWriter.Write([]byte("q"))
+func (c *CommandController) PressQuite(n int) {
+	for range n {
+		c.stdinWriter.Write([]byte("q"))
+	}
 }
