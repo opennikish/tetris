@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+// todo: Find better way awaiting for rendered state instead of time.Sleep(). Consider extend app with render hooks or maybe add hook around ScreenBuffer.
+
 func TestHorizontalMoveDoesNotCrossWalls(t *testing.T) {
 	stdout := NewScreenBuffer(25)
 	stdin, stdinWriter := io.Pipe()
@@ -43,8 +45,7 @@ func TestHorizontalMoveDoesNotCrossWalls(t *testing.T) {
 
 	cmdController := NewCommandController(stdinWriter)
 
-	ticker.Tick()
-	ticker.Tick()
+	ticker.Tick(2)
 	time.Sleep(1 * time.Millisecond)
 	expected := `                        
 <! . . . . . . . . . .!>
@@ -167,7 +168,7 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 
 	cmdController := NewCommandController(stdinWriter)
 
-	ticker.Tick()
+	ticker.Tick(1)
 	time.Sleep(1 * time.Millisecond)
 	expected := `                        
 <! . . . .[] . . . . .!>
@@ -196,7 +197,7 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 	actual := stdout.String()
 	eq(t, expected, actual)
 
-	ticker.Tick()
+	ticker.Tick(1)
 	cmdController.PressRotate()
 	time.Sleep(1 * time.Millisecond)
 	expected = `                        
@@ -226,7 +227,7 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 	actual = stdout.String()
 	eq(t, expected, actual)
 
-	ticker.Tick()
+	ticker.Tick(1)
 	cmdController.PressRotate()
 	time.Sleep(1 * time.Millisecond)
 	expected = `                        
@@ -256,7 +257,7 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 	actual = stdout.String()
 	eq(t, expected, actual)
 
-	ticker.Tick()
+	ticker.Tick(1)
 	cmdController.PressRotate()
 	time.Sleep(1 * time.Millisecond)
 	expected = `                        
@@ -345,7 +346,7 @@ func TestCementAfterFallDownToTheGroundOrAnotherTetromino(t *testing.T) {
 		}
 	}()
 
-	ticker.Tick()
+	ticker.Tick(1)
 	time.Sleep(1 * time.Millisecond)
 	expected := `                        
 <! . . . .[] . . . . .!>
@@ -374,11 +375,7 @@ func TestCementAfterFallDownToTheGroundOrAnotherTetromino(t *testing.T) {
 	actual := stdout.String()
 	eq(t, expected, actual)
 
-	for range 19 {
-		ticker.Tick()
-	}
-
-	// todo: Fix appearing on the correct line
+	ticker.Tick(19)
 	time.Sleep(1 * time.Millisecond)
 	expected = `                        
 <! . . . .[] . . . . .!>
@@ -399,6 +396,35 @@ func TestCementAfterFallDownToTheGroundOrAnotherTetromino(t *testing.T) {
 <! . . . . . . . . . .!>
 <! . . . . . . . . . .!>
 <! . . . . . . . . . .!>
+<! . . . .[] . . . . .!>
+<! . . .[][][] . . . .!>
+<!====================!>
+<!\/\/\/\/\/\/\/\/\/\/!>
+`
+	actual = stdout.String()
+	eq(t, expected, actual)
+
+	ticker.Tick(17)
+	time.Sleep(2 * time.Millisecond)
+	expected = `                        
+<! . . . .[] . . . . .!>
+<! . . .[][][] . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . . . . . . . .!>
+<! . . . .[] . . . . .!>
+<! . . .[][][] . . . .!>
 <! . . . .[] . . . . .!>
 <! . . .[][][] . . . .!>
 <!====================!>
@@ -432,8 +458,10 @@ func (t *TestTicker) Start() {}
 
 func (t *TestTicker) Stop() {}
 
-func (t *TestTicker) Tick() {
-	t.C <- struct{}{}
+func (t *TestTicker) Tick(n int) {
+	for range n {
+		t.C <- struct{}{}
+	}
 }
 
 type ScreenBuffer struct {
