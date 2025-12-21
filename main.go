@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const OffsetTop = 1
+const OffsetTop = 0
 const OffsetLeft = 2
 
 func main() {
@@ -89,9 +89,8 @@ func (a *App) Start(ctx context.Context) error {
 	a.DrawField()
 	a.render()
 
-	// todo: check if already lended
+	// todo: check if already lended to another tetro and do gameover
 	tetro := a.NextTetro()
-	tetro.Draw(a.cursor, a.stdout)
 
 	tickCount := 0
 
@@ -310,7 +309,7 @@ func (t *PinTetro) Rotate() {
 func (t *PinTetro) Clear(cursor *Cursor, stdout io.Writer) {
 	for _, p := range t.Points {
 		empty := ' '
-		if p.bracket == ']' {
+		if p.bracket == ']' && p.y != OffsetTop {
 			empty = '.'
 		}
 		cursor.SetPos(p.y+1, p.x+1)

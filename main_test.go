@@ -44,6 +44,7 @@ func TestHorizontalMoveDoesNotCrossWalls(t *testing.T) {
 	cmdController := NewCommandController(stdinWriter)
 
 	ticker.Tick()
+	ticker.Tick()
 	time.Sleep(1 * time.Millisecond)
 	expected := `                        
 <! . . . . . . . . . .!>
@@ -166,6 +167,7 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 
 	cmdController := NewCommandController(stdinWriter)
 
+	ticker.Tick()
 	time.Sleep(1 * time.Millisecond)
 	expected := `                        
 <! . . . .[] . . . . .!>
@@ -343,6 +345,7 @@ func TestCementAfterFallDownToTheGroundOrAnotherTetromino(t *testing.T) {
 		}
 	}()
 
+	ticker.Tick()
 	time.Sleep(1 * time.Millisecond)
 	expected := `                        
 <! . . . .[] . . . . .!>
