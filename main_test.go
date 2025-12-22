@@ -582,7 +582,6 @@ func TestActiveTetrominoDoesNotCrossCementedTetrominos(t *testing.T) {
 	actual = stdout.String()
 	eq(t, expected, actual)
 
-	// todo: Fix
 	cmdController.PressLeft(10)
 	time.Sleep(2 * time.Millisecond)
 	expected = `                        

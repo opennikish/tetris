@@ -111,11 +111,11 @@ func (a *App) Start(ctx context.Context) error {
 				tetro.Draw(a.cursor, a.stdout)
 			case Left:
 				tetro.Clear(a.cursor, a.stdout)
-				tetro.MoveHorizontaly(-1)
+				tetro.MoveHorizontaly(a.field, -1)
 				tetro.Draw(a.cursor, a.stdout)
 			case Right:
 				tetro.Clear(a.cursor, a.stdout)
-				tetro.MoveHorizontaly(1)
+				tetro.MoveHorizontaly(a.field, 1)
 				tetro.Draw(a.cursor, a.stdout)
 			}
 
@@ -242,7 +242,7 @@ func commandReader(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan
 }
 
 type Tetro interface {
-	MoveHorizontaly(dir int)
+	MoveHorizontaly(field [][]byte, dir int)
 	MoveDown()
 	Rotate()
 
@@ -330,10 +330,14 @@ func (t *PinTetro) MoveDown() {
 	}
 }
 
-func (t *PinTetro) MoveHorizontaly(dir int) {
+func (t *PinTetro) MoveHorizontaly(field [][]byte, dir int) {
 	for _, p := range t.Points {
-		next := p.x + dir*2
-		if next < OffsetLeft || next > OffsetLeft+20 {
+		nextPos := p.x + dir*2
+		if nextPos < OffsetLeft || nextPos > OffsetLeft+20 {
+			return
+		}
+		nextSymbol := field[p.y][nextPos]
+		if nextSymbol == '[' || nextSymbol == ']' {
 			return
 		}
 	}
