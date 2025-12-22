@@ -5,7 +5,7 @@ This version intentionally mirrors the visual style of the original 1984 release
 
 ### Dev
 
-See [roadmap.md]
+See [roadmap.md](./roadmap.md)
 
 Run
 ```
