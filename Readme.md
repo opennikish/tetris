@@ -1,6 +1,11 @@
 ## Tetris
 
+An implementation of the classic Tetris game, originally created by Alexey Pajitnov. 
+This version intentionally mirrors the visual style of the original 1984 release, using bracket-based graphics with minor variations.
+
 ### Dev
+
+See [roadmap.md]
 
 Run
 ```
@@ -13,5 +18,5 @@ echo "" > tmp.log && tail -f tmp.log
 
 Run tests:
 ```
-go test main.go main_test.go
+go test
 ```
