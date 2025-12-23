@@ -15,6 +15,7 @@
     - [ ] Render test hooks — either implement them within tests (e.g., using a decorator around the `ScreenBuffer` test helper) or expose them via the app API
     - [ ] Tetromino representation — can a single struct support all tetrominos and their functionality (wall kicks, etc.)?
 - [ ] Unit tests
+- [ ] Side kicks
 - [ ] Support rotations on the ground
     - [ ] Choose a standard
 - [ ] Colors?
@@ -27,3 +28,10 @@
 - [ ] Accelerate gravity
 - [ ] Add a left-side panel with the next tetromino and statistics
 - [ ] Add a right-side panel with control help
+
+#### Phase 4
+- [ ] Support windows
+- [ ] Register in package managers
+    - [ ] brew
+    - [ ] debian (apt)
+    - [ ] chocolatey

@@ -1,7 +1,9 @@
 ## Tetris
 
-An implementation of the classic Tetris game, originally created by Alexey Pajitnov. 
-This version intentionally mirrors the visual style of the original 1984 release, using bracket-based graphics with minor variations.
+An implementation of the Tetris game, originally created by Alexey Pajitnov.
+This version intentionally mirrors the visual style and esthetic of the original 1984 release, using bracket-based graphics.
+
+Intentionaly has zero dependencies.
 
 ### Dev
 
