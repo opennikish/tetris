@@ -135,16 +135,43 @@ func (a *App) onInput(cmd Command) {
 	case Rotate:
 		a.currTetro.Clear(a.cursor, a.stdout)
 		a.currTetro.Rotate()
+		if !a.canPlace(a.currTetro) {
+			for range 3 {
+				a.currTetro.Rotate()
+			}
+		}
 		a.currTetro.Draw(a.cursor, a.stdout)
 	case Left:
 		a.currTetro.Clear(a.cursor, a.stdout)
-		a.currTetro.MoveHorizontaly(a.field, -1)
+		a.currTetro.MoveHorizontaly(-1)
+		if !a.canPlace(a.currTetro) {
+			a.currTetro.MoveHorizontaly(1)
+		}
 		a.currTetro.Draw(a.cursor, a.stdout)
 	case Right:
 		a.currTetro.Clear(a.cursor, a.stdout)
-		a.currTetro.MoveHorizontaly(a.field, 1)
+		a.currTetro.MoveHorizontaly(1)
+		if !a.canPlace(a.currTetro) {
+			a.currTetro.MoveHorizontaly(-1)
+		}
 		a.currTetro.Draw(a.cursor, a.stdout)
 	}
+}
+
+func (a *App) canPlace(tetro *Tetromino) bool {
+	for _, p := range tetro.Points {
+		if p.x < OffsetLeft || p.x > OffsetLeft+20 {
+			return false
+		}
+		if p.y > a.height {
+			return false
+		}
+		symbol := a.field[p.y][p.x]
+		if symbol == '[' || symbol == ']' {
+			return false
+		}
+	}
+	return true
 }
 
 func (a *App) quit() {
@@ -309,18 +336,7 @@ func (t *Tetromino) MoveDown() {
 	}
 }
 
-func (t *Tetromino) MoveHorizontaly(field [][]byte, dir int) {
-	for _, p := range t.Points {
-		nextPos := p.x + dir*2
-		if nextPos < OffsetLeft || nextPos > OffsetLeft+20 {
-			return
-		}
-		nextSymbol := field[p.y][nextPos]
-		if nextSymbol == '[' || nextSymbol == ']' {
-			return
-		}
-	}
-
+func (t *Tetromino) MoveHorizontaly(dir int) {
 	for i := range 8 {
 		t.Points[i].x += dir * 2
 	}
@@ -329,6 +345,7 @@ func (t *Tetromino) MoveHorizontaly(field [][]byte, dir int) {
 // todo: Extract Clear and Draw somewhere, it's too much responsibility
 func (t *Tetromino) Clear(cursor *Cursor, stdout io.Writer) {
 	for _, p := range t.Points {
+		// todo: Clear should not know about it's background or accept `field`
 		empty := ' '
 		if p.symbol == ']' && p.y != OffsetTop {
 			empty = '.'
