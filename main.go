@@ -39,13 +39,13 @@ func main() {
 type App struct {
 	width         int
 	height        int
-	field         [][]byte
 	cursor        *Cursor
 	stdout        io.Writer
 	stdin         io.Reader
 	exec          func(cmd string, args ...string) error
 	commandReader func(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error)
 	ticker        AppTicker
+	playfield     *Playfield
 	currTetro     *Tetromino
 	tickCount     int
 	ctxCancel     context.CancelFunc
@@ -63,7 +63,6 @@ func NewApp(
 	return &App{
 		width:         width,
 		height:        height,
-		field:         [][]byte{},
 		cursor:        cursor,
 		stdout:        stdout,
 		stdin:         stdin,
@@ -90,8 +89,11 @@ func (a *App) Start(ctx context.Context) error {
 	defer a.ticker.Stop()
 
 	clearScreen(a.stdout)
-	a.DrawField()
-	a.render()
+
+	a.playfield = NewPlayfield(a.width, a.height)
+	a.playfield.Init()
+	a.playfield.Render(a.stdout)
+
 	a.currTetro = a.NextTetro()
 
 	log("start loop")
@@ -115,9 +117,9 @@ func (a *App) onTick() {
 	log("tick: %d", a.tickCount)
 	a.tickCount++
 
-	if a.currTetro.IsLanded(a.field) {
+	if a.playfield.IsLanded(a.currTetro) {
 		log("is landed")
-		a.currTetro.Cement(a.field)
+		a.playfield.Cement(a.currTetro)
 		a.currTetro = a.NextTetro() // todo: check if already lended to another currTetro and do gameover
 	}
 
@@ -135,7 +137,7 @@ func (a *App) onInput(cmd Command) {
 	case Rotate:
 		a.currTetro.Clear(a.cursor, a.stdout)
 		a.currTetro.Rotate()
-		if !a.canPlace(a.currTetro) {
+		if !a.playfield.canPlace(a.currTetro) {
 			for range 3 {
 				a.currTetro.Rotate()
 			}
@@ -144,34 +146,18 @@ func (a *App) onInput(cmd Command) {
 	case Left:
 		a.currTetro.Clear(a.cursor, a.stdout)
 		a.currTetro.MoveHorizontaly(-1)
-		if !a.canPlace(a.currTetro) {
+		if !a.playfield.canPlace(a.currTetro) {
 			a.currTetro.MoveHorizontaly(1)
 		}
 		a.currTetro.Draw(a.cursor, a.stdout)
 	case Right:
 		a.currTetro.Clear(a.cursor, a.stdout)
 		a.currTetro.MoveHorizontaly(1)
-		if !a.canPlace(a.currTetro) {
+		if !a.playfield.canPlace(a.currTetro) {
 			a.currTetro.MoveHorizontaly(-1)
 		}
 		a.currTetro.Draw(a.cursor, a.stdout)
 	}
-}
-
-func (a *App) canPlace(tetro *Tetromino) bool {
-	for _, p := range tetro.Points {
-		if p.x < OffsetLeft || p.x > OffsetLeft+20 {
-			return false
-		}
-		if p.y > a.height {
-			return false
-		}
-		symbol := a.field[p.y][p.x]
-		if symbol == '[' || symbol == ']' {
-			return false
-		}
-	}
-	return true
 }
 
 func (a *App) quit() {
@@ -181,34 +167,6 @@ func (a *App) quit() {
 // todo: impl
 func (a *App) NextTetro() *Tetromino {
 	return NewPinTetro()
-}
-
-func (a *App) DrawField() {
-	// todo: Extract to struct and make convention to access `field [][]byte` for Draw method
-	for i := 0; i <= a.height; i++ {
-		row := []byte{'<', '!'}
-		row = append(row, bytes.Repeat([]byte{' ', '.'}, a.width)...)
-		row = append(row, '!', '>')
-		a.field = append(a.field, row)
-	}
-
-	row := []byte{'<', '!'}
-	row = append(row, bytes.Repeat([]byte{'=', '='}, a.width)...)
-	row = append(row, '!', '>')
-	a.field = append(a.field, row)
-
-	row = []byte{'<', '!'}
-	row = append(row, bytes.Repeat([]byte{'\\', '/'}, a.width)...)
-	row = append(row, '!', '>')
-	a.field = append(a.field, row)
-}
-
-func (a *App) render() {
-	log("app: render")
-	fmt.Fprintln(a.stdout, strings.Repeat(" ", a.width*2+4))
-	for i := 1; i < len(a.field); i++ {
-		fmt.Fprintf(a.stdout, "%s\n", a.field[i])
-	}
 }
 
 func (a *App) configureTerminal() error {
@@ -225,6 +183,79 @@ func (a *App) configureTerminal() error {
 	}
 
 	return nil
+}
+
+type Playfield struct {
+	width  int
+	height int
+	field  [][]byte
+}
+
+func NewPlayfield(width, height int) *Playfield {
+	return &Playfield{
+		width:  width,
+		height: height,
+	}
+}
+
+func (pf *Playfield) canPlace(tetro *Tetromino) bool {
+	for _, p := range tetro.Points {
+		if p.x < OffsetLeft || p.x > OffsetLeft+20 {
+			return false
+		}
+		if p.y >= len(pf.field) {
+			return false
+		}
+		symbol := pf.field[p.y][p.x]
+		if symbol == '[' || symbol == ']' {
+			return false
+		}
+	}
+	return true
+}
+
+func (pf *Playfield) Init() {
+	// todo: init first row as empty
+	for i := 0; i <= pf.height; i++ {
+		row := []byte{'<', '!'}
+		row = append(row, bytes.Repeat([]byte{' ', '.'}, pf.width)...)
+		row = append(row, '!', '>')
+		pf.field = append(pf.field, row)
+	}
+
+	row := []byte{'<', '!'}
+	row = append(row, bytes.Repeat([]byte{'=', '='}, pf.width)...)
+	row = append(row, '!', '>')
+	pf.field = append(pf.field, row)
+
+	row = []byte{'<', '!'}
+	row = append(row, bytes.Repeat([]byte{'\\', '/'}, pf.width)...)
+	row = append(row, '!', '>')
+	pf.field = append(pf.field, row)
+}
+
+func (pf *Playfield) Render(stdout io.Writer) {
+	log("playfield: render")
+	fmt.Fprintln(stdout, strings.Repeat(" ", pf.width*2+4)) // todo: remove it
+	for i := 1; i < len(pf.field); i++ {
+		fmt.Fprintf(stdout, "%s\n", pf.field[i])
+	}
+}
+
+func (pf *Playfield) IsLanded(tetro *Tetromino) bool {
+	for _, p := range tetro.Points {
+		nextPoint := pf.field[p.y+1][p.x]
+		if p.y == 20 || nextPoint == '[' || nextPoint == ']' {
+			return true
+		}
+	}
+	return false
+}
+
+func (pf *Playfield) Cement(tetro *Tetromino) {
+	for _, p := range tetro.Points {
+		pf.field[p.y][p.x] = p.symbol
+	}
 }
 
 type Command int
@@ -360,22 +391,6 @@ func (t *Tetromino) Draw(cursor *Cursor, stdout io.Writer) {
 		cursor.SetPos(p.y+1, p.x+1)
 		fmt.Fprintf(stdout, "%c", p.symbol)
 	}
-}
-
-func (t *Tetromino) Cement(field [][]byte) {
-	for _, p := range t.Points {
-		field[p.y][p.x] = p.symbol
-	}
-}
-
-func (t *Tetromino) IsLanded(field [][]byte) bool {
-	for _, p := range t.Points {
-		nextPoint := field[p.y+1][p.x]
-		if p.y == 20 || nextPoint == '[' || nextPoint == ']' {
-			return true
-		}
-	}
-	return false
 }
 
 type Cursor struct { // todo: find better place
