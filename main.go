@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -22,8 +21,7 @@ func main() {
 	app := NewApp(
 		10,
 		20,
-		&Cursor{Stdout: os.Stdout},
-		os.Stdout,
+		&TerminalScreen{stdout: os.Stdout},
 		os.Stdin,
 		exec_,
 		commandReader,
@@ -37,38 +35,35 @@ func main() {
 }
 
 type App struct {
-	width         int
-	height        int
-	cursor        *Cursor
-	stdout        io.Writer
-	stdin         io.Reader
-	exec          func(cmd string, args ...string) error
-	commandReader func(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error)
-	ticker        AppTicker
-	playfield     *Playfield
-	currTetro     *Tetromino
-	tickCount     int
-	ctxCancel     context.CancelFunc
+	width          int
+	height         int
+	terminalScreen *TerminalScreen
+	stdin          io.Reader
+	exec           func(cmd string, args ...string) error
+	commandReader  func(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error)
+	ticker         AppTicker
+	playfield      *Playfield
+	currTetro      *Tetromino
+	tickCount      int
+	ctxCancel      context.CancelFunc
 }
 
 func NewApp(
 	width, height int,
-	cursor *Cursor,
-	stdout io.Writer,
+	terminalScreen *TerminalScreen,
 	stdin io.Reader,
 	exec func(cmd string, args ...string) error,
 	commandReader func(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error),
 	ticker AppTicker,
 ) *App {
 	return &App{
-		width:         width,
-		height:        height,
-		cursor:        cursor,
-		stdout:        stdout,
-		stdin:         stdin,
-		exec:          exec,
-		commandReader: commandReader,
-		ticker:        ticker,
+		width:          width,
+		height:         height,
+		terminalScreen: terminalScreen,
+		stdin:          stdin,
+		exec:           exec,
+		commandReader:  commandReader,
+		ticker:         ticker,
 	}
 }
 
@@ -88,13 +83,13 @@ func (a *App) Start(ctx context.Context) error {
 	a.ticker.Start()
 	defer a.ticker.Stop()
 
-	clearScreen(a.stdout)
+	a.terminalScreen.Clearscreen()
 
 	a.playfield = NewPlayfield(a.width, a.height)
 	a.playfield.Init()
-	a.playfield.Render(a.stdout)
+	a.playfield.Render(a.terminalScreen)
 
-	a.currTetro = a.NextTetro()
+	a.currTetro = a.spawnNext()
 
 	log("start loop")
 	for {
@@ -104,8 +99,8 @@ func (a *App) Start(ctx context.Context) error {
 		case <-a.ticker.Channel():
 			a.onTick()
 		case <-ctx.Done():
-			a.cursor.SetPos(a.height+4, 0)
-			fmt.Fprintln(a.stdout, "Bye")
+			a.terminalScreen.SetCursor(a.height+4, 0)
+			a.terminalScreen.Print("Bye")
 			return nil
 		case err := <-errc:
 			return fmt.Errorf("read ui commands: %w", err)
@@ -118,14 +113,17 @@ func (a *App) onTick() {
 	a.tickCount++
 
 	if a.playfield.IsLanded(a.currTetro) {
-		log("is landed")
-		a.playfield.Cement(a.currTetro)
-		a.currTetro = a.NextTetro() // todo: check if already lended to another currTetro and do gameover
+		log("tetro landed")
+		a.playfield.LockDown(a.currTetro)
+		a.currTetro = a.spawnNext()
+		if !a.playfield.CanPlace(a.currTetro) {
+			a.quit()
+		}
 	}
 
-	a.currTetro.Clear(a.cursor, a.stdout)
+	a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
 	a.currTetro.MoveDown()
-	a.currTetro.Draw(a.cursor, a.stdout)
+	a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
 }
 
 func (a *App) onInput(cmd Command) {
@@ -135,28 +133,28 @@ func (a *App) onInput(cmd Command) {
 	case Quit:
 		a.quit()
 	case Rotate:
-		a.currTetro.Clear(a.cursor, a.stdout)
+		a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
 		a.currTetro.Rotate()
-		if !a.playfield.canPlace(a.currTetro) {
+		if !a.playfield.CanPlace(a.currTetro) {
 			for range 3 {
 				a.currTetro.Rotate()
 			}
 		}
-		a.currTetro.Draw(a.cursor, a.stdout)
+		a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
 	case Left:
-		a.currTetro.Clear(a.cursor, a.stdout)
+		a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
 		a.currTetro.MoveHorizontaly(-1)
-		if !a.playfield.canPlace(a.currTetro) {
+		if !a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveHorizontaly(1)
 		}
-		a.currTetro.Draw(a.cursor, a.stdout)
+		a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
 	case Right:
-		a.currTetro.Clear(a.cursor, a.stdout)
+		a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
 		a.currTetro.MoveHorizontaly(1)
-		if !a.playfield.canPlace(a.currTetro) {
+		if !a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveHorizontaly(-1)
 		}
-		a.currTetro.Draw(a.cursor, a.stdout)
+		a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
 	}
 }
 
@@ -165,7 +163,7 @@ func (a *App) quit() {
 }
 
 // todo: impl
-func (a *App) NextTetro() *Tetromino {
+func (a *App) spawnNext() *Tetromino {
 	return NewPinTetro()
 }
 
@@ -198,7 +196,7 @@ func NewPlayfield(width, height int) *Playfield {
 	}
 }
 
-func (pf *Playfield) canPlace(tetro *Tetromino) bool {
+func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
 	for _, p := range tetro.Points {
 		if p.x < OffsetLeft || p.x > OffsetLeft+20 {
 			return false
@@ -215,8 +213,9 @@ func (pf *Playfield) canPlace(tetro *Tetromino) bool {
 }
 
 func (pf *Playfield) Init() {
-	// todo: init first row as empty
-	for i := 0; i <= pf.height; i++ {
+	pf.field = append(pf.field, bytes.Repeat([]byte{' '}, pf.width*2+4)) // invisible row
+
+	for i := 0; i < pf.height; i++ {
 		row := []byte{'<', '!'}
 		row = append(row, bytes.Repeat([]byte{' ', '.'}, pf.width)...)
 		row = append(row, '!', '>')
@@ -234,11 +233,10 @@ func (pf *Playfield) Init() {
 	pf.field = append(pf.field, row)
 }
 
-func (pf *Playfield) Render(stdout io.Writer) {
+func (pf *Playfield) Render(printer *TerminalScreen) {
 	log("playfield: render")
-	fmt.Fprintln(stdout, strings.Repeat(" ", pf.width*2+4)) // todo: remove it
-	for i := 1; i < len(pf.field); i++ {
-		fmt.Fprintf(stdout, "%s\n", pf.field[i])
+	for i := 0; i < len(pf.field); i++ {
+		printer.Printf("%s\n", pf.field[i])
 	}
 }
 
@@ -252,9 +250,23 @@ func (pf *Playfield) IsLanded(tetro *Tetromino) bool {
 	return false
 }
 
-func (pf *Playfield) Cement(tetro *Tetromino) {
+func (pf *Playfield) LockDown(tetro *Tetromino) {
 	for _, p := range tetro.Points {
 		pf.field[p.y][p.x] = p.symbol
+	}
+}
+
+func (pf *Playfield) ClearTetro(printer *TerminalScreen, tetro *Tetromino) {
+	for _, p := range tetro.Points {
+		printer.SetCursor(p.y+1, p.x+1)
+		printer.Printf("%c", pf.field[p.y][p.x])
+	}
+}
+
+func (pf *Playfield) DrawTetro(printer *TerminalScreen, tetro *Tetromino) {
+	for _, p := range tetro.Points {
+		printer.SetCursor(p.y+1, p.x+1)
+		printer.Printf("%c", p.symbol)
 	}
 }
 
@@ -373,40 +385,6 @@ func (t *Tetromino) MoveHorizontaly(dir int) {
 	}
 }
 
-// todo: Extract Clear and Draw somewhere, it's too much responsibility
-func (t *Tetromino) Clear(cursor *Cursor, stdout io.Writer) {
-	for _, p := range t.Points {
-		// todo: Clear should not know about it's background or accept `field`
-		empty := ' '
-		if p.symbol == ']' && p.y != OffsetTop {
-			empty = '.'
-		}
-		cursor.SetPos(p.y+1, p.x+1)
-		fmt.Fprintf(stdout, "%c", empty)
-	}
-}
-
-func (t *Tetromino) Draw(cursor *Cursor, stdout io.Writer) {
-	for _, p := range t.Points {
-		cursor.SetPos(p.y+1, p.x+1)
-		fmt.Fprintf(stdout, "%c", p.symbol)
-	}
-}
-
-type Cursor struct { // todo: find better place
-	Stdout io.Writer
-}
-
-// SetPos send escape sequence to the stdout.
-// The line and column starts from 1 (not from 0).ikn
-func (c *Cursor) SetPos(line, column int) {
-	fmt.Fprintf(c.Stdout, "\033[%d;%dH", line, column)
-}
-
-func clearScreen(stdout io.Writer) {
-	fmt.Fprint(stdout, "\033[H\033[2J")
-}
-
 func log(format string, a ...any) {
 	if len(a) == 0 {
 		fmt.Fprint(os.Stderr, format+"\n")
@@ -465,4 +443,26 @@ func (t *AcceleratingTicker) Stop() {
 
 func exec_(cmd string, args ...string) error {
 	return exec.Command(cmd, args...).Run()
+}
+
+type TerminalScreen struct {
+	stdout io.Writer
+}
+
+func (t *TerminalScreen) Print(s string) {
+	fmt.Fprint(t.stdout, s)
+}
+
+func (t *TerminalScreen) Clearscreen() {
+	fmt.Fprint(t.stdout, "\033[H\033[2J")
+}
+
+// SetPos send escape sequence to the stdout.
+// The line and column starts from 1 (not from 0).ikn
+func (t *TerminalScreen) SetCursor(line, column int) {
+	fmt.Fprintf(t.stdout, "\033[%d;%dH", line, column)
+}
+
+func (t *TerminalScreen) Printf(format string, a ...any) {
+	fmt.Fprintf(t.stdout, format, a...)
 }
