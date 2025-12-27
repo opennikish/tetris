@@ -21,7 +21,7 @@ func main() {
 	app := NewApp(
 		10,
 		20,
-		&TerminalScreen{stdout: os.Stdout},
+		NewTerminalScreen(os.Stdout),
 		os.Stdin,
 		exec_,
 		commandReader,
@@ -35,35 +35,35 @@ func main() {
 }
 
 type App struct {
-	width          int
-	height         int
-	terminalScreen *TerminalScreen
-	stdin          io.Reader
-	exec           func(cmd string, args ...string) error
-	commandReader  func(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error)
-	ticker         AppTicker
-	playfield      *Playfield
-	currTetro      *Tetromino
-	tickCount      int
-	ctxCancel      context.CancelFunc
+	width         int
+	height        int
+	screen        *TerminalScreen
+	stdin         io.Reader
+	exec          func(cmd string, args ...string) error
+	commandReader func(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error)
+	ticker        AppTicker
+	playfield     *Playfield
+	currTetro     *Tetromino
+	tickCount     int
+	ctxCancel     context.CancelFunc
 }
 
 func NewApp(
 	width, height int,
-	terminalScreen *TerminalScreen,
+	screen *TerminalScreen,
 	stdin io.Reader,
 	exec func(cmd string, args ...string) error,
 	commandReader func(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error),
 	ticker AppTicker,
 ) *App {
 	return &App{
-		width:          width,
-		height:         height,
-		terminalScreen: terminalScreen,
-		stdin:          stdin,
-		exec:           exec,
-		commandReader:  commandReader,
-		ticker:         ticker,
+		width:         width,
+		height:        height,
+		screen:        screen,
+		stdin:         stdin,
+		exec:          exec,
+		commandReader: commandReader,
+		ticker:        ticker,
 	}
 }
 
@@ -83,11 +83,11 @@ func (a *App) Start(ctx context.Context) error {
 	a.ticker.Start()
 	defer a.ticker.Stop()
 
-	a.terminalScreen.Clearscreen()
+	a.screen.Clearscreen()
 
 	a.playfield = NewPlayfield(a.width, a.height)
 	a.playfield.Init()
-	a.playfield.Render(a.terminalScreen)
+	a.playfield.Render(a.screen)
 
 	a.currTetro = a.spawnNext()
 
@@ -99,8 +99,8 @@ func (a *App) Start(ctx context.Context) error {
 		case <-a.ticker.Channel():
 			a.onTick()
 		case <-ctx.Done():
-			a.terminalScreen.SetCursor(a.height+4, 0)
-			a.terminalScreen.Print("Bye")
+			a.screen.SetCursor(a.height+4, 0)
+			a.screen.Print("Bye")
 			return nil
 		case err := <-errc:
 			return fmt.Errorf("read ui commands: %w", err)
@@ -121,9 +121,9 @@ func (a *App) onTick() {
 		}
 	}
 
-	a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
+	a.playfield.ClearTetro(a.screen, a.currTetro)
 	a.currTetro.MoveVert(1)
-	a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
+	a.playfield.DrawTetro(a.screen, a.currTetro)
 }
 
 func (a *App) onInput(cmd Command) {
@@ -133,35 +133,35 @@ func (a *App) onInput(cmd Command) {
 	case Quit:
 		a.quit()
 	case Rotate:
-		a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
+		a.playfield.ClearTetro(a.screen, a.currTetro)
 		a.currTetro.Rotate()
 		if !a.playfield.CanPlace(a.currTetro) {
 			for range 3 {
 				a.currTetro.Rotate()
 			}
 		}
-		a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
+		a.playfield.DrawTetro(a.screen, a.currTetro)
 	case Left:
-		a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
+		a.playfield.ClearTetro(a.screen, a.currTetro)
 		a.currTetro.MoveHorizontaly(-1)
 		if !a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveHorizontaly(1)
 		}
-		a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
+		a.playfield.DrawTetro(a.screen, a.currTetro)
 	case Right:
-		a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
+		a.playfield.ClearTetro(a.screen, a.currTetro)
 		a.currTetro.MoveHorizontaly(1)
 		if !a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveHorizontaly(-1)
 		}
-		a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
+		a.playfield.DrawTetro(a.screen, a.currTetro)
 	case HardDrop:
-		a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
+		a.playfield.ClearTetro(a.screen, a.currTetro)
 		for a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveVert(1)
 		}
 		a.currTetro.MoveVert(-1)
-		a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
+		a.playfield.DrawTetro(a.screen, a.currTetro)
 	}
 }
 
@@ -263,17 +263,17 @@ func (pf *Playfield) LockDown(tetro *Tetromino) {
 	}
 }
 
-func (pf *Playfield) ClearTetro(printer *TerminalScreen, tetro *Tetromino) {
+func (pf *Playfield) ClearTetro(screen *TerminalScreen, tetro *Tetromino) {
 	for _, p := range tetro.Points {
-		printer.SetCursor(p.y+1, p.x+1)
-		printer.Printf("%c", pf.field[p.y][p.x])
+		screen.SetCursor(p.y+1, p.x+1)
+		screen.Printf("%c", pf.field[p.y][p.x])
 	}
 }
 
-func (pf *Playfield) DrawTetro(printer *TerminalScreen, tetro *Tetromino) {
+func (pf *Playfield) DrawTetro(screen *TerminalScreen, tetro *Tetromino) {
 	for _, p := range tetro.Points {
-		printer.SetCursor(p.y+1, p.x+1)
-		printer.Printf("%c", p.symbol)
+		screen.SetCursor(p.y+1, p.x+1)
+		screen.Printf("%c", p.symbol)
 	}
 }
 
@@ -457,6 +457,10 @@ func exec_(cmd string, args ...string) error {
 
 type TerminalScreen struct {
 	stdout io.Writer
+}
+
+func NewTerminalScreen(stdout io.Writer) *TerminalScreen {
+	return &TerminalScreen{stdout: stdout}
 }
 
 func (t *TerminalScreen) Print(s string) {
