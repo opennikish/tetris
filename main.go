@@ -201,7 +201,7 @@ func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
 		if p.x < OffsetLeft || p.x > OffsetLeft+20 {
 			return false
 		}
-		if p.y >= len(pf.field) {
+		if p.y >= pf.height {
 			return false
 		}
 		symbol := pf.field[p.y][p.x]
