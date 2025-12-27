@@ -122,7 +122,7 @@ func (a *App) onTick() {
 	}
 
 	a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
-	a.currTetro.MoveDown()
+	a.currTetro.MoveVert(1)
 	a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
 }
 
@@ -154,6 +154,13 @@ func (a *App) onInput(cmd Command) {
 		if !a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveHorizontaly(-1)
 		}
+		a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
+	case HardDrop:
+		a.playfield.ClearTetro(a.terminalScreen, a.currTetro)
+		for a.playfield.CanPlace(a.currTetro) {
+			a.currTetro.MoveVert(1)
+		}
+		a.currTetro.MoveVert(-1)
 		a.playfield.DrawTetro(a.terminalScreen, a.currTetro)
 	}
 }
@@ -201,7 +208,7 @@ func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
 		if p.x < OffsetLeft || p.x > OffsetLeft+20 {
 			return false
 		}
-		if p.y >= pf.height {
+		if p.y >= pf.height+1 {
 			return false
 		}
 		symbol := pf.field[p.y][p.x]
@@ -276,14 +283,16 @@ const (
 	Left Command = iota
 	Right
 	Rotate
+	HardDrop
 	Quit
 )
 
 var cmdNames = map[Command]string{
-	Left:   "left",
-	Right:  "right",
-	Rotate: "rotate",
-	Quit:   "quit",
+	Left:     "left",
+	Right:    "right",
+	Rotate:   "rotate",
+	HardDrop: "hard-drop",
+	Quit:     "quit",
 }
 
 func (c Command) String() string {
@@ -295,10 +304,11 @@ func commandReader(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan
 	buf := make([]byte, 3)
 
 	cmdMap := map[string]Command{
-		string([]byte{27, 91, 67}): Right, // escape sequence for right arrow
-		string([]byte{27, 91, 68}): Left,  // escape sequence for left arrow
-		" ":                        Rotate,
-		"q":                        Quit,
+		"\033[A": Rotate,
+		"\033[C": Right,
+		"\033[D": Left,
+		" ":      HardDrop,
+		"q":      Quit,
 	}
 
 	go func() {
@@ -373,9 +383,9 @@ func (t *Tetromino) Rotate() {
 	t.rotationPos = (t.rotationPos + 1) % 4
 }
 
-func (t *Tetromino) MoveDown() {
+func (t *Tetromino) MoveVert(dir int) {
 	for i := range 8 {
-		t.Points[i].y += 1
+		t.Points[i].y += dir
 	}
 }
 
