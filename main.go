@@ -143,16 +143,16 @@ func (a *App) onInput(cmd Command) {
 		a.playfield.DrawTetro(a.screen, a.currTetro)
 	case Left:
 		a.playfield.ClearTetro(a.screen, a.currTetro)
-		a.currTetro.MoveHorizontaly(-1)
+		a.currTetro.MoveHoriz(-1)
 		if !a.playfield.CanPlace(a.currTetro) {
-			a.currTetro.MoveHorizontaly(1)
+			a.currTetro.MoveHoriz(1)
 		}
 		a.playfield.DrawTetro(a.screen, a.currTetro)
 	case Right:
 		a.playfield.ClearTetro(a.screen, a.currTetro)
-		a.currTetro.MoveHorizontaly(1)
+		a.currTetro.MoveHoriz(1)
 		if !a.playfield.CanPlace(a.currTetro) {
-			a.currTetro.MoveHorizontaly(-1)
+			a.currTetro.MoveHoriz(-1)
 		}
 		a.playfield.DrawTetro(a.screen, a.currTetro)
 	case HardDrop:
@@ -389,7 +389,7 @@ func (t *Tetromino) MoveVert(dir int) {
 	}
 }
 
-func (t *Tetromino) MoveHorizontaly(dir int) {
+func (t *Tetromino) MoveHoriz(dir int) {
 	for i := range 8 {
 		t.Points[i].x += dir * 2
 	}
