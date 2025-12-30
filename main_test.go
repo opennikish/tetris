@@ -24,8 +24,7 @@ func TestHorizontalMoveDoesNotCrossWalls(t *testing.T) {
 	app := NewApp(
 		10,
 		20,
-		&Cursor{Stdout: stdout},
-		stdout,
+		NewTerminalScreen(stdout),
 		stdin,
 		func(cmd string, args ...string) error { return nil },
 		commandReader,
@@ -145,8 +144,7 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 	app := NewApp(
 		10,
 		20,
-		&Cursor{Stdout: stdout},
-		stdout,
+		NewTerminalScreen(stdout),
 		stdin,
 		func(cmd string, args ...string) error { return nil },
 		commandReader,
@@ -325,8 +323,7 @@ func TestCementAfterFallDownToTheGroundOrAnotherTetromino(t *testing.T) {
 	app := NewApp(
 		10,
 		20,
-		&Cursor{Stdout: stdout},
-		stdout,
+		NewTerminalScreen(stdout),
 		stdin,
 		func(cmd string, args ...string) error { return nil },
 		commandReader,
@@ -442,8 +439,7 @@ func TestActiveTetrominoDoesNotCrossCementedTetrominos(t *testing.T) {
 	app := NewApp(
 		10,
 		20,
-		&Cursor{Stdout: stdout},
-		stdout,
+		NewTerminalScreen(stdout),
 		stdin,
 		func(cmd string, args ...string) error { return nil },
 		commandReader,
@@ -614,7 +610,7 @@ func TestActiveTetrominoDoesNotCrossCementedTetrominos(t *testing.T) {
 
 func eq[T comparable](t *testing.T, expected, actual T) {
 	if expected != actual {
-		t.Fatalf(fmt.Sprintf("expected: %v got: %v", expected, actual))
+		t.Fatalf("expected: %v got: %v", expected, actual)
 	}
 }
 
@@ -727,7 +723,7 @@ func (c *CommandController) PressRight(n int) {
 
 func (c *CommandController) PressRotate(n int) {
 	for range n {
-		c.stdinWriter.Write([]byte(" "))
+		c.stdinWriter.Write([]byte("\033[A"))
 	}
 }
 
