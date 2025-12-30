@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"slices"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -89,7 +91,7 @@ func (a *App) Start(ctx context.Context) error {
 	a.playfield.Init()
 	a.playfield.Render(a.screen)
 
-	a.currTetro = a.spawnNext()
+	a.currTetro = a.nextTetro()
 
 	log("start loop")
 	for {
@@ -115,9 +117,11 @@ func (a *App) onTick() {
 	if a.playfield.IsLanded(a.currTetro) {
 		log("tetro landed")
 		a.playfield.LockDown(a.currTetro)
-		a.currTetro = a.spawnNext()
+		a.playfield.RemoveCompletedLines(a.screen)
+		a.currTetro = a.nextTetro()
 		if !a.playfield.CanPlace(a.currTetro) {
-			a.quit()
+			log("gameover")
+			a.quit() // todo: gameover
 		}
 	}
 
@@ -170,7 +174,7 @@ func (a *App) quit() {
 }
 
 // todo: impl
-func (a *App) spawnNext() *Tetromino {
+func (a *App) nextTetro() *Tetromino {
 	return NewPinTetro()
 }
 
@@ -203,22 +207,6 @@ func NewPlayfield(width, height int) *Playfield {
 	}
 }
 
-func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
-	for _, p := range tetro.Points {
-		if p.x < OffsetLeft || p.x > OffsetLeft+20 {
-			return false
-		}
-		if p.y >= pf.height+1 {
-			return false
-		}
-		symbol := pf.field[p.y][p.x]
-		if symbol == '[' || symbol == ']' {
-			return false
-		}
-	}
-	return true
-}
-
 func (pf *Playfield) Init() {
 	pf.field = append(pf.field, bytes.Repeat([]byte{' '}, pf.width*2+4)) // invisible row
 
@@ -240,10 +228,78 @@ func (pf *Playfield) Init() {
 	pf.field = append(pf.field, row)
 }
 
-func (pf *Playfield) Render(printer *TerminalScreen) {
+func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
+	for _, p := range tetro.Points {
+		if p.x < OffsetLeft || p.x > OffsetLeft+20 {
+			return false
+		}
+		if p.y >= pf.height+1 {
+			return false
+		}
+		symbol := pf.field[p.y][p.x]
+		if symbol == '[' || symbol == ']' {
+			return false
+		}
+	}
+	return true
+}
+
+func (pf *Playfield) RemoveCompletedLines(screen *TerminalScreen) int {
+	completed := pf.completedLines()
+	pf.clearLines(screen, completed)
+	pf.collapseAbove(screen, completed)
+
+	return len(completed)
+}
+
+func (pf *Playfield) completedLines() []int {
+	completed := make([]int, 0, 4)
+	for i := 1; i < pf.height+1; i++ { // ignore empty line and ground
+		if !bytes.Contains(pf.field[i], []byte{' ', '.'}) {
+			completed = append(completed, i)
+		}
+	}
+	return completed
+}
+
+func (pf *Playfield) clearLines(screen *TerminalScreen, completed []int) {
+	emptyLine := strings.Repeat(" .", pf.width)
+	end := OffsetLeft + pf.width*2
+	for i := len(completed) - 1; i >= 0; i -= 1 {
+		k := completed[i]
+		screen.SetCursor(OffsetTop+k+1, OffsetLeft+1)
+		screen.Print(emptyLine)
+		copy(pf.field[k][OffsetLeft:end], []byte(emptyLine))
+	}
+}
+
+func (pf *Playfield) collapseAbove(screen *TerminalScreen, completed []int) {
+	step := 0
+
+	for i := pf.height + 1; i >= 1; i -= 1 { // ignore empty line and ground
+		if slices.Contains(completed, i) {
+			step++
+			continue
+		}
+
+		if step == 0 || bytes.Equal(pf.field[i], pf.field[i+step]) {
+			continue
+		}
+
+		pf.field[i], pf.field[i+step] = pf.field[i+step], pf.field[i]
+
+		screen.SetCursor(OffsetTop+i+1, OffsetLeft+1)
+		screen.Print(string(pf.field[i][OffsetLeft:]))
+
+		screen.SetCursor(OffsetTop+i+step+1, OffsetLeft+1)
+		screen.Print(string(pf.field[i+step][OffsetLeft:]))
+	}
+}
+
+func (pf *Playfield) Render(screen *TerminalScreen) {
 	log("playfield: render")
 	for i := 0; i < len(pf.field); i++ {
-		printer.Printf("%s\n", pf.field[i])
+		screen.Printf("%s\n", pf.field[i])
 	}
 }
 
