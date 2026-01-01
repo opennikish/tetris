@@ -85,11 +85,10 @@ func (a *App) Start(ctx context.Context) error {
 	a.ticker.Start()
 	defer a.ticker.Stop()
 
-	a.screen.Clearscreen()
-
 	a.playfield = NewPlayfield(a.width, a.height)
-	a.playfield.Init()
-	a.playfield.Render(a.screen)
+	a.playfield.Init() // todo: remove and init inside constructor
+
+	a.render(a.playfield)
 
 	a.currTetro = a.nextTetro()
 
@@ -110,6 +109,36 @@ func (a *App) Start(ctx context.Context) error {
 	}
 }
 
+func (a *App) render(playfield *Playfield) {
+	a.screen.Clearscreen()
+	a.screen.SetCursor(1, 1)
+
+	a.screen.Print(strings.Repeat(" ", a.width*2+4))
+	a.screen.Print("\n")
+
+	leftBorder := "<!"
+	rightBorder := "!>"
+
+	playfieldLine := make([]byte, a.width*2)
+
+	for i := range a.height {
+		a.screen.Print(leftBorder)
+		playfield.CopyLine(i, playfieldLine)
+		a.screen.Printf("%s", playfieldLine)
+		a.screen.Print(rightBorder)
+		a.screen.Print("\n")
+	}
+
+	a.screen.Print(leftBorder)
+	a.screen.Print(strings.Repeat("==", a.width))
+	a.screen.Print(rightBorder)
+	a.screen.Print("\n")
+	a.screen.Print(leftBorder)
+	a.screen.Print(strings.Repeat("\\/", a.width))
+	a.screen.Print(rightBorder)
+	a.screen.Print("\n")
+}
+
 func (a *App) onTick() {
 	log("tick: %d", a.tickCount)
 	a.tickCount++
@@ -120,7 +149,7 @@ func (a *App) onTick() {
 		a.playfield.RemoveCompletedLines(func(i int) {
 			log("redraw line: %d", i)
 			a.screen.SetCursor(OffsetTop+i+1, OffsetLeft+1)
-			a.screen.Print(string(a.playfield.field[i][OffsetLeft:]))
+			a.screen.Print(string(a.playfield.field[i]))
 		})
 		a.currTetro = a.nextTetro()
 		if !a.playfield.CanPlace(a.currTetro) {
@@ -211,40 +240,35 @@ func NewPlayfield(width, height int) *Playfield {
 	}
 }
 
+func (pf *Playfield) CopyLine(i int, dst []byte) {
+	copy(dst, pf.field[i+1]) // 0 is hidden, so 1-based
+}
+
 func (pf *Playfield) Init() {
 	pf.field = append(pf.field, bytes.Repeat([]byte{' '}, pf.width*2+4)) // invisible row
 
 	for i := 0; i < pf.height; i++ {
-		row := []byte{'<', '!'}
-		row = append(row, bytes.Repeat([]byte{' ', '.'}, pf.width)...)
-		row = append(row, '!', '>')
+		row := bytes.Repeat([]byte{' ', '.'}, pf.width)
 		pf.field = append(pf.field, row)
 	}
-
-	row := []byte{'<', '!'}
-	row = append(row, bytes.Repeat([]byte{'=', '='}, pf.width)...)
-	row = append(row, '!', '>')
-	pf.field = append(pf.field, row)
-
-	row = []byte{'<', '!'}
-	row = append(row, bytes.Repeat([]byte{'\\', '/'}, pf.width)...)
-	row = append(row, '!', '>')
-	pf.field = append(pf.field, row)
 }
 
 func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
 	for _, p := range tetro.Points {
-		if p.x < OffsetLeft || p.x > OffsetLeft+20 {
+		if p.x < 0 || p.x >= pf.width*2 {
 			return false
 		}
+
 		if p.y >= pf.height+1 {
 			return false
 		}
+
 		symbol := pf.field[p.y][p.x]
 		if symbol == '[' || symbol == ']' {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -253,10 +277,9 @@ func (pf *Playfield) RemoveCompletedLines(onLineChanged func(i int)) int {
 
 	log("clear lines")
 	emptyLine := strings.Repeat(" .", pf.width)
-	end := OffsetLeft + pf.width*2
 	for i := len(completed) - 1; i >= 0; i -= 1 {
 		k := completed[i]
-		copy(pf.field[k][OffsetLeft:end], []byte(emptyLine))
+		copy(pf.field[k], []byte(emptyLine))
 		onLineChanged(k)
 	}
 
@@ -300,17 +323,9 @@ func (pf *Playfield) collapseAbove(completed []int) []int {
 	return updated
 }
 
-func (pf *Playfield) Render(screen *TerminalScreen) {
-	log("playfield: render")
-	for i := 0; i < len(pf.field); i++ {
-		screen.Printf("%s\n", pf.field[i])
-	}
-}
-
 func (pf *Playfield) IsLanded(tetro *Tetromino) bool {
 	for _, p := range tetro.Points {
-		nextPoint := pf.field[p.y+1][p.x]
-		if p.y == 20 || nextPoint == '[' || nextPoint == ']' {
+		if p.y == pf.height || pf.field[p.y+1][p.x] == '[' || pf.field[p.y+1][p.x] == ']' {
 			return true
 		}
 	}
@@ -325,14 +340,14 @@ func (pf *Playfield) LockDown(tetro *Tetromino) {
 
 func (pf *Playfield) ClearTetro(screen *TerminalScreen, tetro *Tetromino) {
 	for _, p := range tetro.Points {
-		screen.SetCursor(p.y+1, p.x+1)
+		screen.SetCursor(OffsetTop+p.y+1, OffsetLeft+p.x+1)
 		screen.Printf("%c", pf.field[p.y][p.x])
 	}
 }
 
 func (pf *Playfield) DrawTetro(screen *TerminalScreen, tetro *Tetromino) {
 	for _, p := range tetro.Points {
-		screen.SetCursor(p.y+1, p.x+1)
+		screen.SetCursor(OffsetTop+p.y+1, OffsetLeft+p.x+1)
 		screen.Printf("%c", p.symbol)
 	}
 }
@@ -412,14 +427,14 @@ type Tetromino struct {
 func NewPinTetro() *Tetromino {
 	return &Tetromino{
 		Points: [8]Point{
-			{OffsetLeft + 4*2, OffsetTop, '['},
-			{OffsetLeft + 4*2 + 1, OffsetTop, ']'},
-			{OffsetLeft + 3*2, OffsetTop + 1, '['},
-			{OffsetLeft + 3*2 + 1, OffsetTop + 1, ']'},
-			{OffsetLeft + 4*2, OffsetTop + 1, '['},
-			{OffsetLeft + 4*2 + 1, OffsetTop + 1, ']'},
-			{OffsetLeft + 5*2, OffsetTop + 1, '['},
-			{OffsetLeft + 5*2 + 1, OffsetTop + 1, ']'},
+			{4 * 2, 0, '['},
+			{4*2 + 1, 0, ']'},
+			{3 * 2, 1, '['},
+			{3*2 + 1, 1, ']'},
+			{4 * 2, 1, '['},
+			{4*2 + 1, 1, ']'},
+			{5 * 2, 1, '['},
+			{5*2 + 1, 1, ']'},
 		},
 		rotationRules: [4]Rule{
 			{Dirs: [4]Dir{{1, 1}, {1, -1}, {0, 0}, {-1, 1}}},
