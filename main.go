@@ -117,7 +117,11 @@ func (a *App) onTick() {
 	if a.playfield.IsLanded(a.currTetro) {
 		log("tetro landed")
 		a.playfield.LockDown(a.currTetro)
-		a.playfield.RemoveCompletedLines(a.screen)
+		a.playfield.RemoveCompletedLines(func(i int) {
+			log("redraw line: %d", i)
+			a.screen.SetCursor(OffsetTop+i+1, OffsetLeft+1)
+			a.screen.Print(string(a.playfield.field[i][OffsetLeft:]))
+		})
 		a.currTetro = a.nextTetro()
 		if !a.playfield.CanPlace(a.currTetro) {
 			log("gameover")
@@ -244,10 +248,23 @@ func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
 	return true
 }
 
-func (pf *Playfield) RemoveCompletedLines(screen *TerminalScreen) int {
+func (pf *Playfield) RemoveCompletedLines(onLineChanged func(i int)) int {
 	completed := pf.completedLines()
-	pf.clearLines(screen, completed)
-	pf.collapseAbove(screen, completed)
+
+	log("clear lines")
+	emptyLine := strings.Repeat(" .", pf.width)
+	end := OffsetLeft + pf.width*2
+	for i := len(completed) - 1; i >= 0; i -= 1 {
+		k := completed[i]
+		copy(pf.field[k][OffsetLeft:end], []byte(emptyLine))
+		onLineChanged(k)
+	}
+
+	log("update collapsed lines")
+	updated := pf.collapseAbove(completed)
+	for _, i := range updated {
+		onLineChanged(i)
+	}
 
 	return len(completed)
 }
@@ -262,18 +279,8 @@ func (pf *Playfield) completedLines() []int {
 	return completed
 }
 
-func (pf *Playfield) clearLines(screen *TerminalScreen, completed []int) {
-	emptyLine := strings.Repeat(" .", pf.width)
-	end := OffsetLeft + pf.width*2
-	for i := len(completed) - 1; i >= 0; i -= 1 {
-		k := completed[i]
-		screen.SetCursor(OffsetTop+k+1, OffsetLeft+1)
-		screen.Print(emptyLine)
-		copy(pf.field[k][OffsetLeft:end], []byte(emptyLine))
-	}
-}
-
-func (pf *Playfield) collapseAbove(screen *TerminalScreen, completed []int) {
+func (pf *Playfield) collapseAbove(completed []int) []int {
+	updated := []int{}
 	step := 0
 
 	for i := pf.height + 1; i >= 1; i -= 1 { // ignore empty line and ground
@@ -287,13 +294,10 @@ func (pf *Playfield) collapseAbove(screen *TerminalScreen, completed []int) {
 		}
 
 		pf.field[i], pf.field[i+step] = pf.field[i+step], pf.field[i]
-
-		screen.SetCursor(OffsetTop+i+1, OffsetLeft+1)
-		screen.Print(string(pf.field[i][OffsetLeft:]))
-
-		screen.SetCursor(OffsetTop+i+step+1, OffsetLeft+1)
-		screen.Print(string(pf.field[i+step][OffsetLeft:]))
+		updated = append(updated, i, i+step)
 	}
+
+	return updated
 }
 
 func (pf *Playfield) Render(screen *TerminalScreen) {
