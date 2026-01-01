@@ -158,9 +158,9 @@ func (a *App) onTick() {
 		}
 	}
 
-	a.playfield.ClearTetro(a.screen, a.currTetro)
+	a.clearTetro(a.currTetro, a.playfield)
 	a.currTetro.MoveVert(1)
-	a.playfield.DrawTetro(a.screen, a.currTetro)
+	a.drawTetro(a.currTetro)
 }
 
 func (a *App) onInput(cmd Command) {
@@ -170,35 +170,35 @@ func (a *App) onInput(cmd Command) {
 	case Quit:
 		a.quit()
 	case Rotate:
-		a.playfield.ClearTetro(a.screen, a.currTetro)
+		a.clearTetro(a.currTetro, a.playfield)
 		a.currTetro.Rotate()
 		if !a.playfield.CanPlace(a.currTetro) {
 			for range 3 {
 				a.currTetro.Rotate()
 			}
 		}
-		a.playfield.DrawTetro(a.screen, a.currTetro)
+		a.drawTetro(a.currTetro)
 	case Left:
-		a.playfield.ClearTetro(a.screen, a.currTetro)
+		a.clearTetro(a.currTetro, a.playfield)
 		a.currTetro.MoveHoriz(-1)
 		if !a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveHoriz(1)
 		}
-		a.playfield.DrawTetro(a.screen, a.currTetro)
+		a.drawTetro(a.currTetro)
 	case Right:
-		a.playfield.ClearTetro(a.screen, a.currTetro)
+		a.clearTetro(a.currTetro, a.playfield)
 		a.currTetro.MoveHoriz(1)
 		if !a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveHoriz(-1)
 		}
-		a.playfield.DrawTetro(a.screen, a.currTetro)
+		a.drawTetro(a.currTetro)
 	case HardDrop:
-		a.playfield.ClearTetro(a.screen, a.currTetro)
+		a.clearTetro(a.currTetro, a.playfield)
 		for a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveVert(1)
 		}
 		a.currTetro.MoveVert(-1)
-		a.playfield.DrawTetro(a.screen, a.currTetro)
+		a.drawTetro(a.currTetro)
 	}
 }
 
@@ -225,6 +225,20 @@ func (a *App) configureTerminal() error {
 	}
 
 	return nil
+}
+
+func (a *App) clearTetro(tetro *Tetromino, playfield *Playfield) {
+	for _, p := range tetro.Points {
+		a.screen.SetCursor(OffsetTop+p.y+1, OffsetLeft+p.x+1)
+		a.screen.Printf("%c", playfield.field[p.y][p.x])
+	}
+}
+
+func (a *App) drawTetro(tetro *Tetromino) {
+	for _, p := range tetro.Points {
+		a.screen.SetCursor(OffsetTop+p.y+1, OffsetLeft+p.x+1)
+		a.screen.Printf("%c", p.symbol)
+	}
 }
 
 type Playfield struct {
@@ -335,20 +349,6 @@ func (pf *Playfield) IsLanded(tetro *Tetromino) bool {
 func (pf *Playfield) LockDown(tetro *Tetromino) {
 	for _, p := range tetro.Points {
 		pf.field[p.y][p.x] = p.symbol
-	}
-}
-
-func (pf *Playfield) ClearTetro(screen *TerminalScreen, tetro *Tetromino) {
-	for _, p := range tetro.Points {
-		screen.SetCursor(OffsetTop+p.y+1, OffsetLeft+p.x+1)
-		screen.Printf("%c", pf.field[p.y][p.x])
-	}
-}
-
-func (pf *Playfield) DrawTetro(screen *TerminalScreen, tetro *Tetromino) {
-	for _, p := range tetro.Points {
-		screen.SetCursor(OffsetTop+p.y+1, OffsetLeft+p.x+1)
-		screen.Printf("%c", p.symbol)
 	}
 }
 
