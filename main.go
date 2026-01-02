@@ -7,10 +7,11 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"slices"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/opennikish/tetris/internal/game"
 )
 
 const OffsetTop = 0
@@ -43,8 +44,8 @@ type App struct {
 	exec          func(cmd string, args ...string) error
 	commandReader func(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error)
 	ticker        AppTicker
-	playfield     *Playfield
-	currTetro     *Tetromino
+	playfield     *game.Playfield
+	currTetro     *game.Tetromino
 	tickCount     int
 	ctxCancel     context.CancelFunc
 }
@@ -84,7 +85,7 @@ func (a *App) Start(ctx context.Context) error {
 	a.ticker.Start()
 	defer a.ticker.Stop()
 
-	a.playfield = NewPlayfield(a.width, a.height)
+	a.playfield = game.NewPlayfield(a.width, a.height)
 
 	a.render(a.playfield)
 
@@ -107,7 +108,7 @@ func (a *App) Start(ctx context.Context) error {
 	}
 }
 
-func (a *App) render(playfield *Playfield) {
+func (a *App) render(playfield *game.Playfield) {
 	a.screen.Clearscreen()
 	a.screen.SetCursor(1, 1)
 
@@ -117,13 +118,13 @@ func (a *App) render(playfield *Playfield) {
 	leftBorder := "<!"
 	rightBorder := "!>"
 
-	playfieldLine := make([]CellKind, a.width)
+	pfLine := make([]game.CellKind, a.width)
 
 	for i := range a.height {
 		a.screen.Print(leftBorder)
 
-		playfield.CopyLine(i, playfieldLine)
-		a.renderPlayfieldLine(playfieldLine)
+		playfield.CopyLine(i+1, pfLine)
+		a.renderPlayfieldLine(pfLine)
 
 		a.screen.Print(rightBorder)
 		a.screen.Print("\n")
@@ -139,19 +140,20 @@ func (a *App) render(playfield *Playfield) {
 	a.screen.Print("\n")
 }
 
-func (a *App) renderPlayfieldLine(line []CellKind) {
+func (a *App) renderPlayfieldLine(line []game.CellKind) {
+	log("line: %v", line)
 	for _, ck := range line {
 		a.renderCell(ck)
 	}
 }
 
-func (a *App) renderCell(ck CellKind) {
+func (a *App) renderCell(ck game.CellKind) {
 	switch ck {
-	case CellBlock:
+	case game.CellBlock:
 		a.screen.Printf("%c%c", '[', ']')
-	case CellEmpty:
+	case game.CellEmpty:
 		a.screen.Printf("%c%c", ' ', '.')
-	case CellHidden:
+	case game.CellHidden:
 		a.screen.Printf("%c%c", ' ', ' ')
 	default:
 		a.screen.Printf("%c%c", '?', '?')
@@ -165,10 +167,12 @@ func (a *App) onTick() {
 	if a.playfield.IsLanded(a.currTetro) {
 		log("tetro landed")
 		a.playfield.LockDown(a.currTetro)
+		pfLine := make([]game.CellKind, a.width)
 		a.playfield.RemoveCompletedLines(func(i int) {
 			log("redraw line: %d", i)
 			a.screen.SetCursor(OffsetTop+i+1, OffsetLeft+1)
-			a.renderPlayfieldLine(a.playfield.field[i]) // todo: Use CopyLine or make `field` public
+			a.playfield.CopyLine(i, pfLine)
+			a.renderPlayfieldLine(pfLine)
 		})
 		a.currTetro = a.nextTetro()
 		if !a.playfield.CanPlace(a.currTetro) {
@@ -226,8 +230,8 @@ func (a *App) quit() {
 }
 
 // todo: impl
-func (a *App) nextTetro() *Tetromino {
-	return NewPinTetro()
+func (a *App) nextTetro() *game.Tetromino {
+	return game.NewPinTetro()
 }
 
 func (a *App) configureTerminal() error {
@@ -246,146 +250,17 @@ func (a *App) configureTerminal() error {
 	return nil
 }
 
-func (a *App) clearTetro(tetro *Tetromino, playfield *Playfield) {
+func (a *App) clearTetro(tetro *game.Tetromino, playfield *game.Playfield) {
 	for _, p := range tetro.Points {
-		a.screen.SetCursor(OffsetTop+p.y+1, OffsetLeft+p.x*2+1)
-		a.renderCell(playfield.field[p.y][p.x]) // todo: Create immutable API or add `CellAt(x, y)`
+		a.screen.SetCursor(OffsetTop+p.Y+1, OffsetLeft+p.X*2+1)
+		a.renderCell(playfield.Cell(p.Y, p.X))
 	}
 }
 
-func (a *App) drawTetro(tetro *Tetromino) {
+func (a *App) drawTetro(tetro *game.Tetromino) {
 	for _, p := range tetro.Points {
-		a.screen.SetCursor(OffsetTop+p.y+1, OffsetLeft+p.x*2+1)
-		a.renderCell(CellBlock)
-	}
-}
-
-type Point struct{ x, y int }
-
-type CellKind uint8
-
-const (
-	CellHidden CellKind = iota
-	CellEmpty
-	CellBlock
-)
-
-type Playfield struct {
-	width int
-	field [][]CellKind
-}
-
-func NewPlayfield(width, height int) *Playfield {
-	field := make([][]CellKind, height+1)
-
-	hidden := make([]CellKind, width)
-	fill(hidden, CellHidden)
-	field[0] = hidden
-
-	for i := 1; i < height+1; i++ {
-		empty := make([]CellKind, width)
-		fill(empty, CellEmpty)
-		field[i] = empty
-	}
-
-	return &Playfield{
-		width: width,
-		field: field,
-	}
-}
-
-func (pf *Playfield) CopyLine(i int, dst []CellKind) { // todo: consider `LineAt(i int) []CellKind`
-	copy(dst, pf.field[i+1]) // 0 is hidden, so 1-based
-}
-
-func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
-	for _, p := range tetro.Points {
-		if p.x < 0 || p.x >= pf.width {
-			return false
-		}
-
-		if p.y >= len(pf.field) {
-			return false
-		}
-
-		cell := pf.field[p.y][p.x]
-		if cell == CellBlock {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (pf *Playfield) RemoveCompletedLines(onLineChanged func(i int)) int {
-	completed := pf.completedLines()
-
-	if len(completed) == 0 {
-		return 0
-	}
-
-	log("clear lines")
-	emptyLine := make([]CellKind, pf.width)
-	fill(emptyLine, CellEmpty)
-	for _, k := range slices.Backward(completed) {
-		copy(pf.field[k], emptyLine)
-		onLineChanged(k)
-	}
-
-	log("update collapsed lines")
-	updated := pf.collapseAbove(completed)
-	for _, i := range updated {
-		onLineChanged(i)
-	}
-
-	return len(completed)
-}
-
-func (pf *Playfield) completedLines() []int {
-	completed := make([]int, 0, 4)
-
-	for i := 1; i < len(pf.field); i++ { // ignore hidden line
-		if !slices.Contains(pf.field[i], CellEmpty) {
-			completed = append(completed, i)
-		}
-	}
-
-	return completed
-}
-
-func (pf *Playfield) collapseAbove(completed []int) []int {
-	updated := []int{}
-	step := 0
-
-	for i := len(pf.field) - 1; i >= 1; i -= 1 { // ignore hidden line
-		if slices.Contains(completed, i) {
-			step++
-			continue
-		}
-
-		if step == 0 || slices.Equal(pf.field[i], pf.field[i+step]) {
-			continue
-		}
-
-		pf.field[i], pf.field[i+step] = pf.field[i+step], pf.field[i]
-		updated = append(updated, i, i+step)
-	}
-
-	return updated
-}
-
-func (pf *Playfield) IsLanded(tetro *Tetromino) bool {
-	for _, p := range tetro.Points {
-		if p.y == len(pf.field)-1 || pf.field[p.y+1][p.x] == CellBlock {
-			return true
-		}
-	}
-	return false
-}
-
-func (pf *Playfield) LockDown(tetro *Tetromino) {
-	for _, p := range tetro.Points {
-		pf.field[p.y][p.x] = CellBlock
+		a.screen.SetCursor(OffsetTop+p.Y+1, OffsetLeft+p.X*2+1)
+		a.renderCell(game.CellBlock)
 	}
 }
 
@@ -441,59 +316,6 @@ func commandReader(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan
 	}()
 
 	return cmds, errc
-}
-
-type Dir struct {
-	x, y int
-}
-type Rule struct {
-	Dirs [4]Dir
-}
-
-type Tetromino struct {
-	rotationPos   int
-	rotationRules [4]Rule
-	Points        [4]Point
-}
-
-func NewPinTetro() *Tetromino {
-	return &Tetromino{
-		Points: [4]Point{
-			{4, 0},
-			{3, 1},
-			{4, 1},
-			{5, 1},
-		},
-		rotationRules: [4]Rule{
-			{Dirs: [4]Dir{{1, 1}, {1, -1}, {0, 0}, {-1, 1}}},
-			{Dirs: [4]Dir{{-1, 1}, {1, 1}, {0, 0}, {-1, -1}}},
-			{Dirs: [4]Dir{{-1, -1}, {-1, 1}, {0, 0}, {1, -1}}},
-			{Dirs: [4]Dir{{1, -1}, {-1, -1}, {0, 0}, {1, 1}}},
-		},
-	}
-}
-
-func (t *Tetromino) Rotate() {
-	rule := t.rotationRules[t.rotationPos]
-
-	for i := 0; i < len(t.Points); i += 1 {
-		t.Points[i].x += rule.Dirs[i].x
-		t.Points[i].y += rule.Dirs[i].y
-	}
-
-	t.rotationPos = (t.rotationPos + 1) % len(t.Points)
-}
-
-func (t *Tetromino) MoveVert(dir int) {
-	for i := range len(t.Points) {
-		t.Points[i].y += dir
-	}
-}
-
-func (t *Tetromino) MoveHoriz(dir int) {
-	for i := range len(t.Points) {
-		t.Points[i].x += dir
-	}
 }
 
 func log(format string, a ...any) {
@@ -580,10 +402,4 @@ func (t *TerminalScreen) SetCursor(line, column int) {
 
 func (t *TerminalScreen) Printf(format string, a ...any) {
 	fmt.Fprintf(t.stdout, format, a...)
-}
-
-func fill[T any](xs []T, x T) {
-	for i := range len(xs) {
-		xs[i] = x
-	}
 }
