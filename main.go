@@ -3,31 +3,27 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/opennikish/tetris/internal/game"
+	"github.com/opennikish/tetris/internal/terminal"
+	"github.com/opennikish/tetris/internal/ui"
 )
-
-const OffsetTop = 0
-const OffsetLeft = 2
 
 func main() {
 	ctx := context.Background()
 
+	term := terminal.NewTerminal(os.Stdin, os.Stdout, exec_)
 	app := NewApp(
 		10,
 		20,
-		NewTerminalScreen(os.Stdout),
-		os.Stdin,
-		exec_,
-		commandReader,
-		NewAcceleratingTicker(500*time.Millisecond),
+		term,
+		ui.NewPlayfieldRenderer(term, 0, 0),
+		NewRealTicker(500*time.Millisecond),
 	)
 
 	if err := app.Start(ctx); err != nil {
@@ -37,35 +33,29 @@ func main() {
 }
 
 type App struct {
-	width         int
-	height        int
-	screen        *TerminalScreen
-	stdin         io.Reader
-	exec          func(cmd string, args ...string) error
-	commandReader func(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error)
-	ticker        AppTicker
-	playfield     *game.Playfield
-	currTetro     *game.Tetromino
-	tickCount     int
-	ctxCancel     context.CancelFunc
+	width     int
+	height    int
+	term      *terminal.Terminal
+	renderer  *ui.PlayfieldRender
+	ticker    Ticker
+	playfield *game.Playfield
+	currTetro *game.Tetromino
+	tickCount int
+	ctxCancel context.CancelFunc
 }
 
 func NewApp(
 	width, height int,
-	screen *TerminalScreen,
-	stdin io.Reader,
-	exec func(cmd string, args ...string) error,
-	commandReader func(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error),
-	ticker AppTicker,
+	term *terminal.Terminal,
+	renderer *ui.PlayfieldRender,
+	ticker Ticker,
 ) *App {
 	return &App{
-		width:         width,
-		height:        height,
-		screen:        screen,
-		stdin:         stdin,
-		exec:          exec,
-		commandReader: commandReader,
-		ticker:        ticker,
+		width:    width,
+		height:   height,
+		renderer: renderer,
+		term:     term,
+		ticker:   ticker,
 	}
 }
 
@@ -75,88 +65,37 @@ func (a *App) Start(ctx context.Context) error {
 	a.ctxCancel = stop
 	defer stop()
 
-	if err := a.configureTerminal(); err != nil {
+	if err := a.term.ConfigureTerminal(); err != nil {
 		return fmt.Errorf("configure terminal: %w", err)
 	}
 
-	cmds, errc := a.commandReader(ctx, a.stdin)
-	log("command reader kicked off")
+	keys, errc := a.term.WatchKeystrokes(ctx)
+	log("keystroke reader kicked off")
 
 	a.ticker.Start()
 	defer a.ticker.Stop()
 
 	a.playfield = game.NewPlayfield(a.width, a.height)
 
-	a.render(a.playfield)
+	a.renderer.Draw(a.playfield)
 
 	a.currTetro = a.nextTetro()
 
 	log("start loop")
 	for {
 		select {
-		case cmd := <-cmds:
-			a.onInput(cmd)
+		case k := <-keys:
+			a.onInput(a.cmdByKey(k))
 		case <-a.ticker.Channel():
 			a.onTick()
 		case <-ctx.Done():
-			a.screen.SetCursor(a.height+4, 0)
-			a.screen.Print("Bye")
+			a.term.SetCursor(a.height+4, 0)
+			a.term.Print("Bye")
+			log("stop loop")
 			return nil
 		case err := <-errc:
 			return fmt.Errorf("read ui commands: %w", err)
 		}
-	}
-}
-
-func (a *App) render(playfield *game.Playfield) {
-	a.screen.Clearscreen()
-	a.screen.SetCursor(1, 1)
-
-	a.screen.Print(strings.Repeat(" ", a.width*2+4))
-	a.screen.Print("\n")
-
-	leftBorder := "<!"
-	rightBorder := "!>"
-
-	pfLine := make([]game.CellKind, a.width)
-
-	for i := range a.height {
-		a.screen.Print(leftBorder)
-
-		playfield.CopyLine(i+1, pfLine)
-		a.renderPlayfieldLine(pfLine)
-
-		a.screen.Print(rightBorder)
-		a.screen.Print("\n")
-	}
-
-	a.screen.Print(leftBorder)
-	a.screen.Print(strings.Repeat("==", a.width))
-	a.screen.Print(rightBorder)
-	a.screen.Print("\n")
-	a.screen.Print(leftBorder)
-	a.screen.Print(strings.Repeat("\\/", a.width))
-	a.screen.Print(rightBorder)
-	a.screen.Print("\n")
-}
-
-func (a *App) renderPlayfieldLine(line []game.CellKind) {
-	log("line: %v", line)
-	for _, ck := range line {
-		a.renderCell(ck)
-	}
-}
-
-func (a *App) renderCell(ck game.CellKind) {
-	switch ck {
-	case game.CellBlock:
-		a.screen.Printf("%c%c", '[', ']')
-	case game.CellEmpty:
-		a.screen.Printf("%c%c", ' ', '.')
-	case game.CellHidden:
-		a.screen.Printf("%c%c", ' ', ' ')
-	default:
-		a.screen.Printf("%c%c", '?', '?')
 	}
 }
 
@@ -170,9 +109,8 @@ func (a *App) onTick() {
 		pfLine := make([]game.CellKind, a.width)
 		a.playfield.RemoveCompletedLines(func(i int) {
 			log("redraw line: %d", i)
-			a.screen.SetCursor(OffsetTop+i+1, OffsetLeft+1)
 			a.playfield.CopyLine(i, pfLine)
-			a.renderPlayfieldLine(pfLine)
+			a.renderer.RerenderPlayfieldLine(i, pfLine)
 		})
 		a.currTetro = a.nextTetro()
 		if !a.playfield.CanPlace(a.currTetro) {
@@ -181,9 +119,10 @@ func (a *App) onTick() {
 		}
 	}
 
-	a.clearTetro(a.currTetro, a.playfield)
+	a.renderer.ClearTetro(a.currTetro, a.playfield)
 	a.currTetro.MoveVert(1)
-	a.drawTetro(a.currTetro)
+	log("tetro points: %+v", a.currTetro.Points)
+	a.renderer.DrawTetro(a.currTetro)
 }
 
 func (a *App) onInput(cmd Command) {
@@ -193,36 +132,57 @@ func (a *App) onInput(cmd Command) {
 	case Quit:
 		a.quit()
 	case Rotate:
-		a.clearTetro(a.currTetro, a.playfield)
+		a.renderer.ClearTetro(a.currTetro, a.playfield)
 		a.currTetro.Rotate()
 		if !a.playfield.CanPlace(a.currTetro) {
 			for range 3 {
 				a.currTetro.Rotate()
 			}
 		}
-		a.drawTetro(a.currTetro)
+		a.renderer.DrawTetro(a.currTetro)
 	case Left:
-		a.clearTetro(a.currTetro, a.playfield)
+		a.renderer.ClearTetro(a.currTetro, a.playfield)
 		a.currTetro.MoveHoriz(-1)
 		if !a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveHoriz(1)
 		}
-		a.drawTetro(a.currTetro)
+		a.renderer.DrawTetro(a.currTetro)
 	case Right:
-		a.clearTetro(a.currTetro, a.playfield)
+		a.renderer.ClearTetro(a.currTetro, a.playfield)
 		a.currTetro.MoveHoriz(1)
 		if !a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveHoriz(-1)
 		}
-		a.drawTetro(a.currTetro)
+		a.renderer.DrawTetro(a.currTetro)
 	case HardDrop:
-		a.clearTetro(a.currTetro, a.playfield)
+		a.renderer.ClearTetro(a.currTetro, a.playfield)
 		for a.playfield.CanPlace(a.currTetro) {
 			a.currTetro.MoveVert(1)
 		}
 		a.currTetro.MoveVert(-1)
-		a.drawTetro(a.currTetro)
+		a.renderer.DrawTetro(a.currTetro)
 	}
+}
+
+func (a *App) cmdByKey(key terminal.Key) Command {
+	switch key.Kind {
+	case terminal.Right:
+		return Right
+	case terminal.Left:
+		return Left
+	case terminal.Up:
+		return Rotate
+	case terminal.Letter:
+		switch key.Char {
+		case ' ':
+			return HardDrop
+		case 'q':
+			return Quit
+		}
+	}
+
+	log("unsupported key: %+v", key)
+	return NoOp
 }
 
 func (a *App) quit() {
@@ -234,36 +194,6 @@ func (a *App) nextTetro() *game.Tetromino {
 	return game.NewPinTetro()
 }
 
-func (a *App) configureTerminal() error {
-	// disable input buffering
-	err := a.exec("stty", "-f", "/dev/tty", "cbreak", "min", "1")
-	if err != nil {
-		return fmt.Errorf("disable input buffer: %w", err)
-	}
-
-	// do not display entered characters on the screen
-	err = a.exec("stty", "-f", "/dev/tty", "-echo")
-	if err != nil {
-		return fmt.Errorf("disable entered characters on the screen: %w", err)
-	}
-
-	return nil
-}
-
-func (a *App) clearTetro(tetro *game.Tetromino, playfield *game.Playfield) {
-	for _, p := range tetro.Points {
-		a.screen.SetCursor(OffsetTop+p.Y+1, OffsetLeft+p.X*2+1)
-		a.renderCell(playfield.Cell(p.Y, p.X))
-	}
-}
-
-func (a *App) drawTetro(tetro *game.Tetromino) {
-	for _, p := range tetro.Points {
-		a.screen.SetCursor(OffsetTop+p.Y+1, OffsetLeft+p.X*2+1)
-		a.renderCell(game.CellBlock)
-	}
-}
-
 type Command int
 
 const (
@@ -272,6 +202,7 @@ const (
 	Rotate
 	HardDrop
 	Quit
+	NoOp
 )
 
 var cmdNames = map[Command]string{
@@ -280,42 +211,11 @@ var cmdNames = map[Command]string{
 	Rotate:   "rotate",
 	HardDrop: "hard-drop",
 	Quit:     "quit",
+	NoOp:     "noop",
 }
 
 func (c Command) String() string {
 	return cmdNames[c]
-}
-
-func commandReader(ctx context.Context, stdin io.Reader) (<-chan Command, <-chan error) {
-	cmds, errc := make(chan Command), make(chan error, 1)
-	buf := make([]byte, 3)
-
-	cmdMap := map[string]Command{
-		"\033[A": Rotate,
-		"\033[C": Right,
-		"\033[D": Left,
-		" ":      HardDrop,
-		"q":      Quit,
-	}
-
-	go func() {
-		defer close(errc)
-		defer close(cmds)
-
-		for ctx.Err() == nil {
-			n, err := stdin.Read(buf)
-			if err != nil {
-				errc <- fmt.Errorf("read stdin: %w", err)
-				break
-			}
-
-			if cmd, ok := cmdMap[string(buf[:n])]; ok {
-				cmds <- cmd
-			}
-		}
-	}()
-
-	return cmds, errc
 }
 
 func log(format string, a ...any) {
@@ -326,80 +226,38 @@ func log(format string, a ...any) {
 	}
 }
 
-type AppTicker interface {
-	Channel() <-chan struct{}
+type Ticker interface {
+	Channel() <-chan time.Time
 	Start()
 	Stop()
+	Reset(d time.Duration)
 }
 
-type AcceleratingTicker struct {
-	C        chan struct{}
-	stopped  chan struct{}
-	duration time.Duration
+type RealTicker struct {
+	ticker *time.Ticker
+	d      time.Duration
 }
 
-func NewAcceleratingTicker(d time.Duration) *AcceleratingTicker {
-	return &AcceleratingTicker{
-		C:        make(chan struct{}),
-		stopped:  make(chan struct{}),
-		duration: d,
-	}
+func NewRealTicker(d time.Duration) *RealTicker {
+	return &RealTicker{d: d}
 }
 
-func (t *AcceleratingTicker) Channel() <-chan struct{} {
-	return t.C
+func (t *RealTicker) Channel() <-chan time.Time {
+	return t.ticker.C
 }
 
-func (t *AcceleratingTicker) Start() {
-	go func() {
-		timer := time.NewTimer(t.duration)
-		defer timer.Stop()
-
-		for {
-			select {
-			case <-t.stopped:
-				log("ticker: got stopped")
-				close(t.C)
-				return
-			case <-timer.C:
-				t.C <- struct{}{}
-				timer.Reset(t.duration) // todo: decrease
-			}
-		}
-	}()
+func (t *RealTicker) Start() {
+	t.ticker = time.NewTicker(t.d)
 }
 
-func (t *AcceleratingTicker) Stop() {
-	log("ticker: call stop")
-	close(t.stopped)
+func (t *RealTicker) Stop() {
+	t.ticker.Stop()
+}
+
+func (t *RealTicker) Reset(d time.Duration) {
+	t.ticker.Reset(d)
 }
 
 func exec_(cmd string, args ...string) error {
 	return exec.Command(cmd, args...).Run()
-}
-
-type TerminalScreen struct {
-	stdout io.Writer
-}
-
-func NewTerminalScreen(stdout io.Writer) *TerminalScreen {
-	return &TerminalScreen{stdout: stdout}
-}
-
-func (t *TerminalScreen) Print(s string) {
-	fmt.Fprint(t.stdout, s)
-}
-
-func (t *TerminalScreen) Clearscreen() {
-	fmt.Fprint(t.stdout, "\033[H\033[2J")
-}
-
-// SetPos send escape sequence to the stdout.
-// The line and column starts from 1 (not from 0).ikn
-func (t *TerminalScreen) SetCursor(line, column int) {
-	fmt.Fprintf(t.stdout, "\033[%d;%dH", line, column)
-}
-
-func (t *TerminalScreen) Printf(format string, a ...any) {
-	fmt.Fprintf(t.stdout, format, a...)
 }

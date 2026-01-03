@@ -44,6 +44,14 @@ func (pf *Playfield) Cell(i, j int) CellKind {
 	return pf.field[i][j]
 }
 
+func (pf *Playfield) Height() int {
+	return len(pf.field) - 1
+}
+
+func (pf *Playfield) Width() int {
+	return pf.width
+}
+
 func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
 	for _, p := range tetro.Points {
 		if p.X < 0 || p.X >= pf.width {
