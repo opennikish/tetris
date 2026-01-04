@@ -108,11 +108,11 @@ func setupGameplayHooks(a *App) {
 func (a *App) onTick() {
 	log("tick: %d", a.tickCount)
 	a.tickCount++
-	if !a.gameplay.Field().IsLanded(a.gameplay.CurrentTetromino()) {
-		a.renderer.ClearTetro(a.gameplay.CurrentTetromino(), a.gameplay.Field())
+	if !a.gameplay.Field().IsLanded(a.gameplay.CurrentTetromino()) && !a.gameplay.Field().IsHidden(a.gameplay.CurrentTetromino()) {
+		a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellEmpty)
 	}
 	a.gameplay.Update()
-	a.renderer.DrawTetro(a.gameplay.CurrentTetromino())
+	a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellBlock)
 }
 
 func (a *App) onInput(k terminal.Key) {
@@ -120,9 +120,9 @@ func (a *App) onInput(k terminal.Key) {
 		a.quit()
 	}
 	if cmd, ok := a.cmdByKey(k); ok {
-		a.renderer.ClearTetro(a.gameplay.CurrentTetromino(), a.gameplay.Field())
+		a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellEmpty)
 		a.gameplay.HandleCommand(cmd)
-		a.renderer.DrawTetro(a.gameplay.CurrentTetromino())
+		a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellBlock)
 	}
 }
 

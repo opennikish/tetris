@@ -141,6 +141,17 @@ func (pf *Playfield) LockDown(tetro *Tetromino) {
 	}
 }
 
+func (pf *Playfield) IsHidden(tetro *Tetromino) bool {
+	for _, p := range tetro.Points {
+		cell := pf.field[p.Y][p.X]
+		if cell == CellHidden {
+			return true
+		}
+	}
+
+	return false
+}
+
 func fill[T any](xs []T, x T) {
 	for i := range len(xs) {
 		xs[i] = x

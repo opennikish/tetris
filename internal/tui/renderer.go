@@ -68,18 +68,10 @@ func (r *PlayfieldRenderer) RedrawPlayfieldLine(i int, line []game.CellKind) {
 	}
 }
 
-// todo: consider keep only DrawTetro with mapper func
-func (r *PlayfieldRenderer) ClearTetro(tetro *game.Tetromino, playfield *game.Playfield) {
+func (r *PlayfieldRenderer) DrawTetro(tetro *game.Tetromino, ck game.CellKind) {
 	for _, p := range tetro.Points {
 		r.term.SetCursor(r.offsetY+p.Y+1, r.offsetX+BorderOffset+p.X*2+1)
-		r.renderCell(playfield.Cell(p.Y, p.X))
-	}
-}
-
-func (r *PlayfieldRenderer) DrawTetro(tetro *game.Tetromino) {
-	for _, p := range tetro.Points {
-		r.term.SetCursor(r.offsetY+p.Y+1, r.offsetX+BorderOffset+p.X*2+1)
-		r.renderCell(game.CellBlock)
+		r.renderCell(ck)
 	}
 }
 
