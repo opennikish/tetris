@@ -39,7 +39,7 @@ func (r *PlayfieldRender) Draw(playfield *game.Playfield) {
 		r.term.Print(leftBorder)
 
 		playfield.CopyLine(i+1, pfLine)
-		r.RenderPlayfieldLine(pfLine)
+		r.DrawPlayfieldLine(pfLine)
 
 		r.term.Println(rightBorder)
 	}
@@ -55,13 +55,13 @@ func (r *PlayfieldRender) Draw(playfield *game.Playfield) {
 	r.term.Println(rightBorder)
 }
 
-func (r *PlayfieldRender) RenderPlayfieldLine(line []game.CellKind) {
+func (r *PlayfieldRender) DrawPlayfieldLine(line []game.CellKind) {
 	for _, ck := range line {
 		r.renderCell(ck)
 	}
 }
 
-func (r *PlayfieldRender) RerenderPlayfieldLine(i int, line []game.CellKind) {
+func (r *PlayfieldRender) RedrawPlayfieldLine(i int, line []game.CellKind) {
 	r.term.SetCursor(r.offsetY+i+1, r.offsetX+BorderOffset+1)
 	for _, ck := range line {
 		r.renderCell(ck)

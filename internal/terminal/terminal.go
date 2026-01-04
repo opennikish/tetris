@@ -99,7 +99,7 @@ func (t *Terminal) WatchKeystrokes(ctx context.Context) (<-chan Key, <-chan erro
 	return keys, errc
 }
 
-// SetPos send escape sequence to the stdout.
+// SetCursor send escape sequence to the stdout.
 // The line and column starts from 1 (not from 0).ikn
 func (t *Terminal) SetCursor(line, column int) {
 	fmt.Fprintf(t.stdout, "\033[%d;%dH", line, column)

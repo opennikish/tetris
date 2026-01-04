@@ -10,6 +10,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/opennikish/tetris/internal/game"
+	"github.com/opennikish/tetris/internal/terminal"
+	"github.com/opennikish/tetris/internal/ui"
 )
 
 // todo: Find better way awaiting for rendered state instead of time.Sleep(). Consider extend app with render hooks or maybe add hook around ScreenBuffer.
@@ -20,14 +24,11 @@ func TestHorizontalMoveDoesNotCrossWalls(t *testing.T) {
 	defer stdinWriter.Close()
 
 	ticker := NewTestTicker()
-
+	term := terminal.NewTerminal(stdin, stdout, func(cmd string, args ...string) error { return nil })
 	app := NewApp(
-		10,
-		20,
-		NewTerminalScreen(stdout),
-		stdin,
-		func(cmd string, args ...string) error { return nil },
-		commandReader,
+		game.NewGameplay(),
+		term,
+		ui.NewPlayfieldRenderer(term, 0, 0),
 		ticker,
 	)
 
@@ -140,14 +141,11 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 	defer stdinWriter.Close()
 
 	ticker := NewTestTicker()
-
+	term := terminal.NewTerminal(stdin, stdout, func(cmd string, args ...string) error { return nil })
 	app := NewApp(
-		10,
-		20,
-		NewTerminalScreen(stdout),
-		stdin,
-		func(cmd string, args ...string) error { return nil },
-		commandReader,
+		game.NewGameplay(),
+		term,
+		ui.NewPlayfieldRenderer(term, 0, 0),
 		ticker,
 	)
 
@@ -319,14 +317,11 @@ func TestCementAfterFallDownToTheGroundOrAnotherTetromino(t *testing.T) {
 	defer stdinWriter.Close()
 
 	ticker := NewTestTicker()
-
+	term := terminal.NewTerminal(stdin, stdout, func(cmd string, args ...string) error { return nil })
 	app := NewApp(
-		10,
-		20,
-		NewTerminalScreen(stdout),
-		stdin,
-		func(cmd string, args ...string) error { return nil },
-		commandReader,
+		game.NewGameplay(),
+		term,
+		ui.NewPlayfieldRenderer(term, 0, 0),
 		ticker,
 	)
 
@@ -435,14 +430,11 @@ func TestActiveTetrominoDoesNotCrossCementedTetrominos(t *testing.T) {
 	defer stdinWriter.Close()
 
 	ticker := NewTestTicker()
-
+	term := terminal.NewTerminal(stdin, stdout, func(cmd string, args ...string) error { return nil })
 	app := NewApp(
-		10,
-		20,
-		NewTerminalScreen(stdout),
-		stdin,
-		func(cmd string, args ...string) error { return nil },
-		commandReader,
+		game.NewGameplay(),
+		term,
+		ui.NewPlayfieldRenderer(term, 0, 0),
 		ticker,
 	)
 
@@ -615,16 +607,16 @@ func eq[T comparable](t *testing.T, expected, actual T) {
 }
 
 type TestTicker struct {
-	C chan struct{}
+	C chan time.Time
 }
 
 func NewTestTicker() *TestTicker {
 	return &TestTicker{
-		C: make(chan struct{}),
+		C: make(chan time.Time),
 	}
 }
 
-func (t *TestTicker) Channel() <-chan struct{} {
+func (t *TestTicker) Channel() <-chan time.Time {
 	return t.C
 }
 
@@ -634,9 +626,11 @@ func (t *TestTicker) Stop() {}
 
 func (t *TestTicker) Tick(n int) {
 	for range n {
-		t.C <- struct{}{}
+		t.C <- time.Time{}
 	}
 }
+
+func (t *TestTicker) Reset(d time.Duration) {}
 
 type ScreenBuffer struct {
 	bytes     []byte

@@ -19,8 +19,7 @@ func main() {
 
 	term := terminal.NewTerminal(os.Stdin, os.Stdout, exec_)
 	app := NewApp(
-		10,
-		20,
+		game.NewGameplay(),
 		term,
 		ui.NewPlayfieldRenderer(term, 0, 0),
 		NewRealTicker(500*time.Millisecond),
@@ -33,26 +32,22 @@ func main() {
 }
 
 type App struct {
-	width     int
-	height    int
+	gameplay  *game.Gameplay
 	term      *terminal.Terminal
 	renderer  *ui.PlayfieldRender
 	ticker    Ticker
-	playfield *game.Playfield
-	currTetro *game.Tetromino
 	tickCount int
 	ctxCancel context.CancelFunc
 }
 
 func NewApp(
-	width, height int,
+	gameplay *game.Gameplay,
 	term *terminal.Terminal,
 	renderer *ui.PlayfieldRender,
 	ticker Ticker,
 ) *App {
 	return &App{
-		width:    width,
-		height:   height,
+		gameplay: gameplay,
 		renderer: renderer,
 		term:     term,
 		ticker:   ticker,
@@ -75,21 +70,19 @@ func (a *App) Start(ctx context.Context) error {
 	a.ticker.Start()
 	defer a.ticker.Stop()
 
-	a.playfield = game.NewPlayfield(a.width, a.height)
+	setupGameplayHooks(a)
 
-	a.renderer.Draw(a.playfield)
-
-	a.currTetro = a.nextTetro()
+	a.renderer.Draw(a.gameplay.Field())
 
 	log("start loop")
 	for {
 		select {
 		case k := <-keys:
-			a.onInput(a.cmdByKey(k))
+			a.onInput(k)
 		case <-a.ticker.Channel():
 			a.onTick()
 		case <-ctx.Done():
-			a.term.SetCursor(a.height+4, 0)
+			a.term.SetCursor(a.gameplay.Field().Height()+4, 0)
 			a.term.Print("Bye")
 			log("stop loop")
 			return nil
@@ -99,123 +92,63 @@ func (a *App) Start(ctx context.Context) error {
 	}
 }
 
+func setupGameplayHooks(a *App) {
+	a.gameplay.OnPreMoveTetromino = func(t *game.Tetromino) {
+		a.renderer.ClearTetro(t, a.gameplay.Field())
+	}
+
+	a.gameplay.OnPostMoveTetromino = func(t *game.Tetromino) {
+		a.renderer.DrawTetro(t)
+	}
+
+	pfLine := make([]game.CellKind, a.gameplay.Field().Width())
+	a.gameplay.OnLineChanged = func(i int) {
+		log("redraw line: %d", i)
+		a.gameplay.Field().CopyLine(i, pfLine)
+		a.renderer.RedrawPlayfieldLine(i, pfLine)
+	}
+
+	a.gameplay.OnGameover = func() {
+		a.quit()
+	}
+}
+
 func (a *App) onTick() {
 	log("tick: %d", a.tickCount)
 	a.tickCount++
-
-	if a.playfield.IsLanded(a.currTetro) {
-		log("tetro landed")
-		a.playfield.LockDown(a.currTetro)
-		pfLine := make([]game.CellKind, a.width)
-		a.playfield.RemoveCompletedLines(func(i int) {
-			log("redraw line: %d", i)
-			a.playfield.CopyLine(i, pfLine)
-			a.renderer.RerenderPlayfieldLine(i, pfLine)
-		})
-		a.currTetro = a.nextTetro()
-		if !a.playfield.CanPlace(a.currTetro) {
-			log("gameover")
-			a.quit() // todo: gameover
-		}
-	}
-
-	a.renderer.ClearTetro(a.currTetro, a.playfield)
-	a.currTetro.MoveVert(1)
-	log("tetro points: %+v", a.currTetro.Points)
-	a.renderer.DrawTetro(a.currTetro)
+	a.gameplay.Update()
 }
 
-func (a *App) onInput(cmd Command) {
-	log("cmd: %s", cmd)
-
-	switch cmd {
-	case Quit:
+func (a *App) onInput(k terminal.Key) {
+	if k.Char == 'q' {
 		a.quit()
-	case Rotate:
-		a.renderer.ClearTetro(a.currTetro, a.playfield)
-		a.currTetro.Rotate()
-		if !a.playfield.CanPlace(a.currTetro) {
-			for range 3 {
-				a.currTetro.Rotate()
-			}
-		}
-		a.renderer.DrawTetro(a.currTetro)
-	case Left:
-		a.renderer.ClearTetro(a.currTetro, a.playfield)
-		a.currTetro.MoveHoriz(-1)
-		if !a.playfield.CanPlace(a.currTetro) {
-			a.currTetro.MoveHoriz(1)
-		}
-		a.renderer.DrawTetro(a.currTetro)
-	case Right:
-		a.renderer.ClearTetro(a.currTetro, a.playfield)
-		a.currTetro.MoveHoriz(1)
-		if !a.playfield.CanPlace(a.currTetro) {
-			a.currTetro.MoveHoriz(-1)
-		}
-		a.renderer.DrawTetro(a.currTetro)
-	case HardDrop:
-		a.renderer.ClearTetro(a.currTetro, a.playfield)
-		for a.playfield.CanPlace(a.currTetro) {
-			a.currTetro.MoveVert(1)
-		}
-		a.currTetro.MoveVert(-1)
-		a.renderer.DrawTetro(a.currTetro)
+	}
+	if cmd, ok := a.cmdByKey(k); ok {
+		a.gameplay.HandleCommand(cmd)
 	}
 }
 
-func (a *App) cmdByKey(key terminal.Key) Command {
+func (a *App) cmdByKey(key terminal.Key) (game.Command, bool) {
 	switch key.Kind {
 	case terminal.Right:
-		return Right
+		return game.MoveRight, true
 	case terminal.Left:
-		return Left
+		return game.MoveLeft, true
 	case terminal.Up:
-		return Rotate
+		return game.Rotate, true
 	case terminal.Letter:
 		switch key.Char {
 		case ' ':
-			return HardDrop
-		case 'q':
-			return Quit
+			return game.HardDrop, true
 		}
 	}
 
 	log("unsupported key: %+v", key)
-	return NoOp
+	return 0, false
 }
 
 func (a *App) quit() {
 	a.ctxCancel()
-}
-
-// todo: impl
-func (a *App) nextTetro() *game.Tetromino {
-	return game.NewPinTetro()
-}
-
-type Command int
-
-const (
-	Left Command = iota
-	Right
-	Rotate
-	HardDrop
-	Quit
-	NoOp
-)
-
-var cmdNames = map[Command]string{
-	Left:     "left",
-	Right:    "right",
-	Rotate:   "rotate",
-	HardDrop: "hard-drop",
-	Quit:     "quit",
-	NoOp:     "noop",
-}
-
-func (c Command) String() string {
-	return cmdNames[c]
 }
 
 func log(format string, a ...any) {
