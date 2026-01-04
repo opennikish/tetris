@@ -21,17 +21,17 @@ func (c Command) String() string {
 }
 
 type Gameplay struct {
-	OnPreMoveTetromino  func(t *Tetromino)
-	OnPostMoveTetromino func(t *Tetromino)
-	OnLineChanged       func(i int)
-	OnGameover          func()
-	playfield           *Playfield
-	currTetro           *Tetromino
+	OnLineChanged func(i int)
+	OnGameover    func()
+	playfield     *Playfield
+	currTetro     *Tetromino
 }
 
 func NewGameplay() *Gameplay {
 	gp := &Gameplay{
-		playfield: NewPlayfield(10, 20),
+		playfield:     NewPlayfield(10, 20),
+		OnLineChanged: func(i int) {},
+		OnGameover:    func() {},
 	}
 	gp.currTetro = gp.nextTetro()
 	return gp
@@ -47,14 +47,10 @@ func (g *Gameplay) Update() {
 		}
 	}
 
-	g.OnPreMoveTetromino(g.currTetro)
 	g.currTetro.MoveVert(1)
-	g.OnPostMoveTetromino(g.currTetro)
 }
 
 func (g *Gameplay) HandleCommand(cmd Command) {
-	g.OnPreMoveTetromino(g.currTetro)
-
 	switch cmd {
 	case Rotate:
 		cand := g.currTetro.Clone()
@@ -78,8 +74,6 @@ func (g *Gameplay) HandleCommand(cmd Command) {
 		}
 		g.currTetro.MoveVert(-1)
 	}
-
-	g.OnPostMoveTetromino(g.currTetro)
 }
 
 func (g *Gameplay) CurrentTetromino() *Tetromino {

@@ -93,14 +93,6 @@ func (a *App) Start(ctx context.Context) error {
 }
 
 func setupGameplayHooks(a *App) {
-	a.gameplay.OnPreMoveTetromino = func(t *game.Tetromino) {
-		a.renderer.ClearTetro(t, a.gameplay.Field())
-	}
-
-	a.gameplay.OnPostMoveTetromino = func(t *game.Tetromino) {
-		a.renderer.DrawTetro(t)
-	}
-
 	pfLine := make([]game.CellKind, a.gameplay.Field().Width())
 	a.gameplay.OnLineChanged = func(i int) {
 		log("redraw line: %d", i)
@@ -116,7 +108,11 @@ func setupGameplayHooks(a *App) {
 func (a *App) onTick() {
 	log("tick: %d", a.tickCount)
 	a.tickCount++
+	if !a.gameplay.Field().IsLanded(a.gameplay.CurrentTetromino()) {
+		a.renderer.ClearTetro(a.gameplay.CurrentTetromino(), a.gameplay.Field())
+	}
 	a.gameplay.Update()
+	a.renderer.DrawTetro(a.gameplay.CurrentTetromino())
 }
 
 func (a *App) onInput(k terminal.Key) {
@@ -124,7 +120,9 @@ func (a *App) onInput(k terminal.Key) {
 		a.quit()
 	}
 	if cmd, ok := a.cmdByKey(k); ok {
+		a.renderer.ClearTetro(a.gameplay.CurrentTetromino(), a.gameplay.Field())
 		a.gameplay.HandleCommand(cmd)
+		a.renderer.DrawTetro(a.gameplay.CurrentTetromino())
 	}
 }
 
