@@ -18,19 +18,28 @@ import (
 
 // todo: Find better way awaiting for rendered state instead of time.Sleep(). Consider extend app with render hooks or maybe add hook around ScreenBuffer.
 
+func createTestApp(
+	stdin io.Reader,
+	stdout io.Writer,
+	ticker *TestTicker,
+) *App {
+	term := terminal.NewTerminal(stdin, stdout, func(cmd string, args ...string) error { return nil })
+	return NewApp(
+		game.NewGameplay(),
+		term,
+		ui.NewPlayfieldRenderer(term, 0, 0),
+		ticker,
+	)
+}
+
 func TestHorizontalMoveDoesNotCrossWalls(t *testing.T) {
 	stdout := NewScreenBuffer(25)
 	stdin, stdinWriter := io.Pipe()
 	defer stdinWriter.Close()
 
 	ticker := NewTestTicker()
-	term := terminal.NewTerminal(stdin, stdout, func(cmd string, args ...string) error { return nil })
-	app := NewApp(
-		game.NewGameplay(),
-		term,
-		ui.NewPlayfieldRenderer(term, 0, 0),
-		ticker,
-	)
+
+	app := createTestApp(stdin, stdout, ticker)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -141,13 +150,8 @@ func TestFallDownWithRotationPinTetro(t *testing.T) {
 	defer stdinWriter.Close()
 
 	ticker := NewTestTicker()
-	term := terminal.NewTerminal(stdin, stdout, func(cmd string, args ...string) error { return nil })
-	app := NewApp(
-		game.NewGameplay(),
-		term,
-		ui.NewPlayfieldRenderer(term, 0, 0),
-		ticker,
-	)
+
+	app := createTestApp(stdin, stdout, ticker)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -317,13 +321,8 @@ func TestCementAfterFallDownToTheGroundOrAnotherTetromino(t *testing.T) {
 	defer stdinWriter.Close()
 
 	ticker := NewTestTicker()
-	term := terminal.NewTerminal(stdin, stdout, func(cmd string, args ...string) error { return nil })
-	app := NewApp(
-		game.NewGameplay(),
-		term,
-		ui.NewPlayfieldRenderer(term, 0, 0),
-		ticker,
-	)
+
+	app := createTestApp(stdin, stdout, ticker)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -430,13 +429,8 @@ func TestActiveTetrominoDoesNotCrossCementedTetrominos(t *testing.T) {
 	defer stdinWriter.Close()
 
 	ticker := NewTestTicker()
-	term := terminal.NewTerminal(stdin, stdout, func(cmd string, args ...string) error { return nil })
-	app := NewApp(
-		game.NewGameplay(),
-		term,
-		ui.NewPlayfieldRenderer(term, 0, 0),
-		ticker,
-	)
+
+	app := createTestApp(stdin, stdout, ticker)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
