@@ -57,11 +57,10 @@ func (g *Gameplay) HandleCommand(cmd Command) {
 
 	switch cmd {
 	case Rotate:
-		g.currTetro.Rotate()
-		if !g.playfield.CanPlace(g.currTetro) {
-			for range 3 {
-				g.currTetro.Rotate()
-			}
+		cand := g.currTetro.Clone()
+		cand.Rotate()
+		if g.playfield.CanPlace(cand) {
+			g.currTetro = cand
 		}
 	case MoveLeft:
 		g.currTetro.MoveHoriz(-1)

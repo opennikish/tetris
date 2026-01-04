@@ -54,3 +54,11 @@ func (t *Tetromino) MoveHoriz(dir int) {
 		t.Points[i].X += dir
 	}
 }
+
+func (t *Tetromino) Clone() *Tetromino {
+	return &Tetromino{
+		Points:        t.Points, // arrays are values
+		rotationRules: t.rotationRules,
+		rotationPos:   t.rotationPos,
+	}
+}
