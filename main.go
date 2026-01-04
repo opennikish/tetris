@@ -11,7 +11,7 @@ import (
 
 	"github.com/opennikish/tetris/internal/game"
 	"github.com/opennikish/tetris/internal/terminal"
-	"github.com/opennikish/tetris/internal/ui"
+	"github.com/opennikish/tetris/internal/tui"
 )
 
 func main() {
@@ -21,7 +21,7 @@ func main() {
 	app := NewApp(
 		game.NewGameplay(),
 		term,
-		ui.NewPlayfieldRenderer(term, 0, 0),
+		tui.NewPlayfieldRenderer(term, 0, 0),
 		NewRealTicker(500*time.Millisecond),
 	)
 
@@ -34,7 +34,7 @@ func main() {
 type App struct {
 	gameplay  *game.Gameplay
 	term      *terminal.Terminal
-	renderer  *ui.PlayfieldRender
+	renderer  *tui.PlayfieldRenderer
 	ticker    Ticker
 	tickCount int
 	ctxCancel context.CancelFunc
@@ -43,7 +43,7 @@ type App struct {
 func NewApp(
 	gameplay *game.Gameplay,
 	term *terminal.Terminal,
-	renderer *ui.PlayfieldRender,
+	renderer *tui.PlayfieldRenderer,
 	ticker Ticker,
 ) *App {
 	return &App{

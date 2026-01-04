@@ -13,7 +13,7 @@ import (
 
 	"github.com/opennikish/tetris/internal/game"
 	"github.com/opennikish/tetris/internal/terminal"
-	"github.com/opennikish/tetris/internal/ui"
+	"github.com/opennikish/tetris/internal/tui"
 )
 
 // todo: Find better way awaiting for rendered state instead of time.Sleep(). Consider extend app with render hooks or maybe add hook around ScreenBuffer.
@@ -27,7 +27,7 @@ func createTestApp(
 	return NewApp(
 		game.NewGameplay(),
 		term,
-		ui.NewPlayfieldRenderer(term, 0, 0),
+		tui.NewPlayfieldRenderer(term, 0, 0),
 		ticker,
 	)
 }

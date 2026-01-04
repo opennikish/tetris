@@ -57,7 +57,7 @@ func (t *Terminal) Println(s string) {
 	fmt.Fprintf(t.stdout, "%s\n", s)
 }
 
-func (t *Terminal) Clearscreen() {
+func (t *Terminal) Clear() {
 	fmt.Fprint(t.stdout, "\033[H\033[2J")
 }
 
@@ -100,7 +100,7 @@ func (t *Terminal) WatchKeystrokes(ctx context.Context) (<-chan Key, <-chan erro
 }
 
 // SetCursor send escape sequence to the stdout.
-// The line and column starts from 1 (not from 0).ikn
+// The line and column starts from 1 (not from 0).
 func (t *Terminal) SetCursor(line, column int) {
 	fmt.Fprintf(t.stdout, "\033[%d;%dH", line, column)
 }
