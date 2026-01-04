@@ -60,7 +60,7 @@ func (a *App) Start(ctx context.Context) error {
 	a.ctxCancel = stop
 	defer stop()
 
-	if err := a.term.ConfigureTerminal(); err != nil {
+	if err := a.term.UseRawModeNoEcho(); err != nil {
 		return fmt.Errorf("configure terminal: %w", err)
 	}
 

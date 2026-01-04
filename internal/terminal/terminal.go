@@ -115,17 +115,13 @@ func (t *Terminal) Printf(format string, a ...any) {
 	fmt.Fprintf(t.stdout, format, a...)
 }
 
-func (t *Terminal) ConfigureTerminal() error {
-	// disable input buffering
-	err := t.exec("stty", "-f", "/dev/tty", "cbreak", "min", "1")
+func (t *Terminal) UseRawModeNoEcho() error {
+	// cbreak - disable input buffering, e.g. read characters immediately no waiting for Enter keystroke
+	// min 1 - Read returns after at least 1 character is available
+	// -echo - prevent print typed chars on the screen
+	err := t.exec("stty", "-f", "/dev/tty", "cbreak", "min", "1", "-echo")
 	if err != nil {
-		return fmt.Errorf("disable input buffer: %w", err)
-	}
-
-	// do not display entered characters on the screen
-	err = t.exec("stty", "-f", "/dev/tty", "-echo")
-	if err != nil {
-		return fmt.Errorf("disable entered characters on the screen: %w", err)
+		return fmt.Errorf("disable input buffering and echo: %w", err)
 	}
 
 	return nil
