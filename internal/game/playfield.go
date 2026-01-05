@@ -37,11 +37,11 @@ func NewPlayfield(width, height int) *Playfield {
 }
 
 func (pf *Playfield) CopyLine(i int, dst []CellKind) {
-	copy(dst, pf.field[i])
+	copy(dst, pf.field[i+1]) // 1-based b/c hidden line
 }
 
 func (pf *Playfield) Cell(i, j int) CellKind {
-	return pf.field[i][j]
+	return pf.field[i+1][j]
 }
 
 func (pf *Playfield) Height() int {
@@ -82,12 +82,12 @@ func (pf *Playfield) RemoveCompletedLines(onLineChanged func(i int)) int {
 	fill(emptyLine, CellEmpty)
 	for _, k := range slices.Backward(completed) {
 		copy(pf.field[k], emptyLine)
-		onLineChanged(k)
+		onLineChanged(k - 1)
 	}
 
 	updated := pf.collapseAbove(completed)
 	for _, i := range updated {
-		onLineChanged(i)
+		onLineChanged(i - 1)
 	}
 
 	return len(completed)

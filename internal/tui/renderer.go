@@ -30,7 +30,7 @@ func (r *PlayfieldRenderer) Draw(playfield *game.Playfield) {
 	leftBorder := "<!"
 	rightBorder := "!>"
 
-	r.term.Println(strings.Repeat(" ", playfield.Width()*2+len(leftBorder)+len(rightBorder)))
+	r.term.Println(strings.Repeat(" ", playfield.Width()*2+len(leftBorder)+len(rightBorder))) // todo: remove it & add offsetY, now's it's only for testing
 
 	pfLine := make([]game.CellKind, playfield.Width())
 	for i := range playfield.Height() {
@@ -38,7 +38,7 @@ func (r *PlayfieldRenderer) Draw(playfield *game.Playfield) {
 
 		r.term.Print(leftBorder)
 
-		playfield.CopyLine(i+1, pfLine)
+		playfield.CopyLine(i, pfLine)
 		r.DrawPlayfieldLine(pfLine)
 
 		r.term.Println(rightBorder)
@@ -62,7 +62,7 @@ func (r *PlayfieldRenderer) DrawPlayfieldLine(line []game.CellKind) {
 }
 
 func (r *PlayfieldRenderer) RedrawPlayfieldLine(i int, line []game.CellKind) {
-	r.term.SetCursor(r.offsetY+i+1, r.offsetX+BorderOffset+1)
+	r.term.SetCursor(r.offsetY+i+1+1, r.offsetX+BorderOffset+1) // extra +1 for line because of drawing empty line
 	for _, ck := range line {
 		r.renderCell(ck)
 	}
