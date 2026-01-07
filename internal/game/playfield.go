@@ -13,8 +13,9 @@ const (
 )
 
 type Playfield struct {
-	width int
-	field [][]CellKind
+	width     int
+	field     [][]CellKind
+	emptyLine []CellKind
 }
 
 func NewPlayfield(width, height int) *Playfield {
@@ -30,9 +31,13 @@ func NewPlayfield(width, height int) *Playfield {
 		field[i] = empty
 	}
 
+	empty := make([]CellKind, width)
+	fill(empty, CellEmpty)
+
 	return &Playfield{
-		width: width,
-		field: field,
+		width:     width,
+		field:     field,
+		emptyLine: empty,
 	}
 }
 
@@ -71,29 +76,27 @@ func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
 	return true
 }
 
-func (pf *Playfield) RemoveCompletedLines(onLineChanged func(i int)) int {
-	completed := pf.completedLines()
-
-	if len(completed) == 0 {
-		return 0
+func (pf *Playfield) RemoveCompletedLines(completed []int) {
+	for _, k := range completed {
+		copy(pf.field[k], pf.emptyLine)
 	}
 
-	emptyLine := make([]CellKind, pf.width)
-	fill(emptyLine, CellEmpty)
-	for _, k := range slices.Backward(completed) {
-		copy(pf.field[k], emptyLine)
-		onLineChanged(k - 1)
-	}
+	step := 0
+	for i := len(pf.field) - 1; i >= 1; i -= 1 { // ignore hidden line
+		if slices.Contains(completed, i) {
+			step++
+			continue
+		}
 
-	updated := pf.collapseAbove(completed)
-	for _, i := range updated {
-		onLineChanged(i - 1)
-	}
+		if step == 0 {
+			continue
+		}
 
-	return len(completed)
+		pf.field[i], pf.field[i+step] = pf.field[i+step], pf.field[i]
+	}
 }
 
-func (pf *Playfield) completedLines() []int {
+func (pf *Playfield) CompletedLines() []int {
 	completed := make([]int, 0, 4)
 
 	for i := 1; i < len(pf.field); i++ { // ignore hidden line
@@ -103,27 +106,6 @@ func (pf *Playfield) completedLines() []int {
 	}
 
 	return completed
-}
-
-func (pf *Playfield) collapseAbove(completed []int) []int {
-	updated := []int{}
-	step := 0
-
-	for i := len(pf.field) - 1; i >= 1; i -= 1 { // ignore hidden line
-		if slices.Contains(completed, i) {
-			step++
-			continue
-		}
-
-		if step == 0 || slices.Equal(pf.field[i], pf.field[i+step]) {
-			continue
-		}
-
-		pf.field[i], pf.field[i+step] = pf.field[i+step], pf.field[i]
-		updated = append(updated, i, i+step)
-	}
-
-	return updated
 }
 
 func (pf *Playfield) IsLanded(tetro *Tetromino) bool {
@@ -150,6 +132,12 @@ func (pf *Playfield) IsHidden(tetro *Tetromino) bool {
 	}
 
 	return false
+}
+
+func (pf *Playfield) CopyTo(dst *Playfield) {
+	for i := range len(pf.field) {
+		copy(dst.field[i], pf.field[i])
+	}
 }
 
 func fill[T any](xs []T, x T) {

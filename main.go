@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"slices"
 	"syscall"
 	"time"
 
@@ -70,8 +71,6 @@ func (a *App) Start(ctx context.Context) error {
 	a.ticker.Start()
 	defer a.ticker.Stop()
 
-	setupGameplayHooks(a)
-
 	a.renderer.Draw(a.gameplay.Field())
 
 	log("start loop")
@@ -92,26 +91,41 @@ func (a *App) Start(ctx context.Context) error {
 	}
 }
 
-func setupGameplayHooks(a *App) {
-	pfLine := make([]game.CellKind, a.gameplay.Field().Width())
-	a.gameplay.OnLineChanged = func(i int) {
-		log("redraw line: %d", i)
-		a.gameplay.Field().CopyLine(i, pfLine)
-		a.renderer.RedrawPlayfieldLine(i, pfLine)
-	}
-
-	a.gameplay.OnGameover = func() {
-		a.quit()
-	}
-}
-
 func (a *App) onTick() {
 	log("tick: %d", a.tickCount)
 	a.tickCount++
 	if !a.gameplay.Field().IsLanded(a.gameplay.CurrentTetromino()) && !a.gameplay.Field().IsHidden(a.gameplay.CurrentTetromino()) {
 		a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellEmpty)
 	}
-	a.gameplay.Update()
+	events := a.gameplay.Update()
+	for _, e := range events {
+		switch evt := e.(type) {
+		case game.LinesClearedEvent:
+			width := a.gameplay.Field().Width()
+			empty := make([]game.CellKind, width)
+			fill(empty, game.CellEmpty)
+			for _, i := range slices.Backward(evt.Cleared) {
+				log("clear line: %d", i)
+				a.renderer.RedrawPlayfieldLine(i, empty)
+			}
+
+			lBefore := make([]game.CellKind, width)
+			lAfter := make([]game.CellKind, width)
+			for i := range a.gameplay.Field().Height() {
+				evt.Before.CopyLine(i, lBefore)
+				evt.After.CopyLine(i, lAfter)
+
+				if !slices.Equal(lBefore, lAfter) {
+					log("redraw line: %d", i)
+					log("line after: %v", lAfter)
+					a.renderer.RedrawPlayfieldLine(i, lAfter)
+				}
+			}
+		case game.GameOverEvent:
+			a.quit()
+		}
+	}
+
 	a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellBlock)
 }
 
@@ -191,4 +205,10 @@ func (t *RealTicker) Reset(d time.Duration) {
 
 func exec_(cmd string, args ...string) error {
 	return exec.Command(cmd, args...).Run()
+}
+
+func fill[T any](xs []T, x T) {
+	for i := range len(xs) {
+		xs[i] = x
+	}
 }
