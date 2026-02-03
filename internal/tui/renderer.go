@@ -88,3 +88,8 @@ func (r *PlayfieldRenderer) renderCell(ck game.CellKind) {
 		r.term.Printf("%c%c", '?', '?')
 	}
 }
+
+func (r *PlayfieldRenderer) RedrawCell(i, j int, ck game.CellKind) {
+	r.term.SetCursor(r.offsetY+i+1+1, r.offsetX+BorderOffset+j*2+1)
+	r.renderCell(ck)
+}

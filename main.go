@@ -33,12 +33,13 @@ func main() {
 }
 
 type App struct {
-	gameplay  *game.Gameplay
-	term      *terminal.Terminal
-	renderer  *tui.PlayfieldRenderer
-	ticker    Ticker
-	tickCount int
-	ctxCancel context.CancelFunc
+	gameplay   *game.Gameplay
+	term       *terminal.Terminal
+	renderer   *tui.PlayfieldRenderer
+	ticker     Ticker
+	tickCount  int
+	ctxCancel  context.CancelFunc
+	fieldCache [][]game.CellKind
 }
 
 func NewApp(
@@ -73,6 +74,8 @@ func (a *App) Start(ctx context.Context) error {
 
 	a.renderer.Draw(a.gameplay.Field())
 
+	a.fieldCache = a.createFieldCache(a.gameplay.Field().Height(), a.gameplay.Field().Width())
+
 	log("start loop")
 	for {
 		select {
@@ -91,42 +94,66 @@ func (a *App) Start(ctx context.Context) error {
 	}
 }
 
+func (a *App) createFieldCache(h, w int) [][]game.CellKind {
+	cache := make([][]game.CellKind, h)
+	for i := range h {
+		a.fieldCache[i] = make([]game.CellKind, w)
+		for j := range w {
+			a.fieldCache[i][j] = a.gameplay.Field().Cell(i, j)
+		}
+	}
+
+	return cache
+}
+
 func (a *App) onTick() {
 	log("tick: %d", a.tickCount)
 	a.tickCount++
-	if !a.gameplay.Field().IsLanded(a.gameplay.CurrentTetromino()) && !a.gameplay.Field().IsHidden(a.gameplay.CurrentTetromino()) {
+
+	if !a.gameplay.Field().IsHidden(a.gameplay.CurrentTetromino()) {
 		a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellEmpty)
 	}
+
 	events := a.gameplay.Update()
+
 	for _, e := range events {
 		switch evt := e.(type) {
-		case game.LinesClearedEvent:
-			width := a.gameplay.Field().Width()
-			empty := make([]game.CellKind, width)
-			fill(empty, game.CellEmpty)
-			for _, i := range slices.Backward(evt.Cleared) {
-				log("clear line: %d", i)
-				a.renderer.RedrawPlayfieldLine(i, empty)
-			}
+		case game.LinesUpdatedEvent:
+			log("line updated event")
 
-			lBefore := make([]game.CellKind, width)
-			lAfter := make([]game.CellKind, width)
-			for i := range a.gameplay.Field().Height() {
-				evt.Before.CopyLine(i, lBefore)
-				evt.After.CopyLine(i, lAfter)
+			a.clearLines(evt.Cleared)
+			log("lines cleared")
 
-				if !slices.Equal(lBefore, lAfter) {
-					log("redraw line: %d", i)
-					log("line after: %v", lAfter)
-					a.renderer.RedrawPlayfieldLine(i, lAfter)
-				}
-			}
+			a.redrawLines()
+			log("lines redrawed")
 		case game.GameOverEvent:
 			a.quit()
 		}
 	}
 
 	a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellBlock)
+}
+
+func (a *App) clearLines(lines []int) {
+	w := a.gameplay.Field().Width()
+	empty := make([]game.CellKind, w)
+	fill(empty, game.CellEmpty)
+	for _, i := range slices.Backward(lines) {
+		a.renderer.RedrawPlayfieldLine(i, empty)
+		a.fieldCache[i] = empty
+	}
+}
+
+func (a *App) redrawLines() {
+	for i := range a.gameplay.Field().Height() {
+		for j := range a.gameplay.Field().Width() {
+			actual := a.gameplay.Field().Cell(i, j)
+			if a.fieldCache[i][j] != actual {
+				a.renderer.RedrawCell(i, j, actual)
+				a.fieldCache[i][j] = actual
+			}
+		}
+	}
 }
 
 func (a *App) onInput(k terminal.Key) {

@@ -76,7 +76,8 @@ func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
 	return true
 }
 
-func (pf *Playfield) RemoveCompletedLines(completed []int) {
+func (pf *Playfield) RemoveCompletedLines() []int {
+	completed := pf.completedLines()
 	for _, k := range completed {
 		copy(pf.field[k], pf.emptyLine)
 	}
@@ -94,9 +95,11 @@ func (pf *Playfield) RemoveCompletedLines(completed []int) {
 
 		pf.field[i], pf.field[i+step] = pf.field[i+step], pf.field[i]
 	}
+
+	return completed
 }
 
-func (pf *Playfield) CompletedLines() []int {
+func (pf *Playfield) completedLines() []int {
 	completed := make([]int, 0, 4)
 
 	for i := 1; i < len(pf.field); i++ { // ignore hidden line
@@ -132,12 +135,6 @@ func (pf *Playfield) IsHidden(tetro *Tetromino) bool {
 	}
 
 	return false
-}
-
-func (pf *Playfield) CopyTo(dst *Playfield) {
-	for i := range len(pf.field) {
-		copy(dst.field[i], pf.field[i])
-	}
 }
 
 func fill[T any](xs []T, x T) {

@@ -57,6 +57,10 @@ func (t *Terminal) Println(s string) {
 	fmt.Fprintf(t.stdout, "%s\n", s)
 }
 
+func (t *Terminal) Printf(format string, a ...any) {
+	fmt.Fprintf(t.stdout, format, a...)
+}
+
 func (t *Terminal) Clear() {
 	fmt.Fprint(t.stdout, "\033[H\033[2J")
 }
@@ -109,10 +113,6 @@ func (t *Terminal) MoveCursorRight(n int) {
 	if n > 0 {
 		fmt.Fprintf(t.stdout, "\033[%dC", n)
 	}
-}
-
-func (t *Terminal) Printf(format string, a ...any) {
-	fmt.Fprintf(t.stdout, format, a...)
 }
 
 func (t *Terminal) UseRawModeNoEcho() error {

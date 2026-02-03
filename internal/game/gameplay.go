@@ -21,15 +21,13 @@ func (c Command) String() string {
 }
 
 type Gameplay struct {
-	playfield       *Playfield
-	playfieldBefore *Playfield
-	currTetro       *Tetromino
+	playfield *Playfield
+	currTetro *Tetromino
 }
 
 func NewGameplay() *Gameplay {
 	gp := &Gameplay{
-		playfield:       NewPlayfield(10, 20),
-		playfieldBefore: NewPlayfield(10, 20),
+		playfield: NewPlayfield(10, 20),
 	}
 	gp.currTetro = gp.nextTetro()
 	return gp
@@ -39,18 +37,12 @@ func (g *Gameplay) Update() []Event {
 	events := []Event{}
 	if g.playfield.IsLanded(g.currTetro) {
 		g.playfield.LockDown(g.currTetro)
+		events = append(events, TetroLockedEvent{})
 
-		completed := g.playfield.CompletedLines()
-		if len(completed) > 0 {
-			g.playfield.CopyTo(g.playfieldBefore)
-			g.playfield.RemoveCompletedLines(completed)
-
-			events = append(events, LinesClearedEvent{
-				Cleared: map_(completed, func(l int) int { return l - 1 }),
-				Before:  g.playfieldBefore,
-				After:   g.playfield,
-			})
-		}
+		completed := g.playfield.RemoveCompletedLines()
+		events = append(events, LinesUpdatedEvent{
+			Cleared: map_(completed, func(l int) int { return l - 1 }),
+		})
 
 		g.currTetro = g.nextTetro()
 
@@ -106,13 +98,16 @@ type Event interface {
 	IsEvent()
 }
 
-type LinesClearedEvent struct {
-	Cleared []int
-	Before  *Playfield
-	After   *Playfield
+type TetroLockedEvent struct {
 }
 
-func (e LinesClearedEvent) IsEvent() {}
+func (e TetroLockedEvent) IsEvent() {}
+
+type LinesUpdatedEvent struct {
+	Cleared []int
+}
+
+func (e LinesUpdatedEvent) IsEvent() {}
 
 type GameOverEvent struct {
 }
