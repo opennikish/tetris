@@ -97,9 +97,9 @@ func (a *App) Start(ctx context.Context) error {
 func (a *App) createFieldCache(h, w int) [][]game.CellKind {
 	cache := make([][]game.CellKind, h)
 	for i := range h {
-		a.fieldCache[i] = make([]game.CellKind, w)
+		cache[i] = make([]game.CellKind, w)
 		for j := range w {
-			a.fieldCache[i][j] = a.gameplay.Field().Cell(i, j)
+			cache[i][j] = a.gameplay.Field().Cell(i, j)
 		}
 	}
 
@@ -122,7 +122,7 @@ func (a *App) onTick() {
 			log("line updated event")
 
 			a.clearLines(evt.Cleared)
-			log("lines cleared")
+			log("lines cleared: %v", evt.Cleared)
 
 			a.redrawLines()
 			log("lines redrawed")
@@ -136,9 +136,9 @@ func (a *App) onTick() {
 
 func (a *App) clearLines(lines []int) {
 	w := a.gameplay.Field().Width()
-	empty := make([]game.CellKind, w)
-	fill(empty, game.CellEmpty)
 	for _, i := range slices.Backward(lines) {
+		empty := make([]game.CellKind, w)
+		fill(empty, game.CellEmpty)
 		a.renderer.RedrawPlayfieldLine(i, empty)
 		a.fieldCache[i] = empty
 	}
