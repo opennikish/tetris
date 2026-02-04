@@ -159,9 +159,11 @@ func (a *App) redrawLines() {
 func (a *App) onInput(k terminal.Key) {
 	if k.Char == 'q' {
 		a.quit()
+		return
 	}
 	if cmd, ok := a.cmdByKey(k); ok {
 		a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellEmpty)
+		log("cmd: %s", cmd)
 		a.gameplay.HandleCommand(cmd)
 		a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellBlock)
 	}
