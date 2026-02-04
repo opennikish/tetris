@@ -11,7 +11,7 @@ type rotationRule struct {
 
 type Tetromino struct {
 	rotationPos   int
-	rotationRules [4]rotationRule
+	rotationRules []rotationRule
 	Points        [4]Point
 }
 
@@ -23,11 +23,28 @@ func NewPinTetro() *Tetromino {
 			{4, 1},
 			{5, 1},
 		},
-		rotationRules: [4]rotationRule{
+		rotationRules: []rotationRule{
 			{dirs: [4]dir{{1, 1}, {1, -1}, {0, 0}, {-1, 1}}},
 			{dirs: [4]dir{{-1, 1}, {1, 1}, {0, 0}, {-1, -1}}},
 			{dirs: [4]dir{{-1, -1}, {-1, 1}, {0, 0}, {1, -1}}},
 			{dirs: [4]dir{{1, -1}, {-1, -1}, {0, 0}, {1, 1}}},
+		},
+	}
+}
+
+func NewITetro() *Tetromino {
+	return &Tetromino{
+		Points: [4]Point{
+			{3, 0},
+			{4, 0},
+			{5, 0},
+			{6, 0},
+		},
+		rotationRules: []rotationRule{
+			{dirs: [4]dir{{2, -1}, {1, 0}, {0, 1}, {-1, 2}}},
+			{dirs: [4]dir{{-2, 1}, {-1, 0}, {0, -1}, {1, -2}}},
+			// {dirs: [4]dir{{2, -1}, {1, 0}, {0, 1}, {-1, 2}}},
+			// {dirs: [4]dir{{-2, 1}, {-1, 0}, {0, -1}, {1, -2}}},
 		},
 	}
 }
@@ -40,7 +57,7 @@ func (t *Tetromino) Rotate() {
 		t.Points[i].Y += rule.dirs[i].y
 	}
 
-	t.rotationPos = (t.rotationPos + 1) % len(t.Points)
+	t.rotationPos = (t.rotationPos + 1) % len(t.rotationRules)
 }
 
 func (t *Tetromino) MoveVert(dir int) {

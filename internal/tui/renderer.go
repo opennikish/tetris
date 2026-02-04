@@ -70,6 +70,9 @@ func (r *PlayfieldRenderer) RedrawPlayfieldLine(i int, line []game.CellKind) {
 
 func (r *PlayfieldRenderer) DrawTetro(tetro *game.Tetromino, ck game.CellKind) {
 	for _, p := range tetro.Points {
+		if p.Y < 1 {
+			continue // Prevent rendering above playfield on rotation
+		}
 		r.term.SetCursor(r.offsetY+p.Y+1, r.offsetX+BorderOffset+p.X*2+1)
 		r.renderCell(ck)
 	}
