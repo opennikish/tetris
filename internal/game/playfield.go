@@ -63,7 +63,7 @@ func (pf *Playfield) CanPlace(tetro *Tetromino) bool {
 			return false
 		}
 
-		if p.Y >= len(pf.field) {
+		if p.Y >= len(pf.field) || p.Y < 0 {
 			return false
 		}
 
