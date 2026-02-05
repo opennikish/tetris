@@ -47,6 +47,84 @@ func NewITetro() *Tetromino {
 	}
 }
 
+func NewOTetro() *Tetromino {
+	return &Tetromino{
+		Points: [4]Point{
+			{4, 0},
+			{5, 0},
+			{4, 1},
+			{5, 1},
+		},
+		rotationRules: []rotationRule{
+			{dirs: [4]dir{{0, 0}, {0, 0}, {0, 0}, {0, 0}}},
+		},
+	}
+}
+
+func NewSTetro() *Tetromino {
+	return &Tetromino{
+		Points: [4]Point{
+			{4, 0},
+			{5, 0},
+			{3, 1},
+			{4, 1},
+		},
+		rotationRules: []rotationRule{
+			{dirs: [4]dir{{1, 0}, {0, 1}, {1, -2}, {0, -1}}},
+			{dirs: [4]dir{{-1, 0}, {0, -1}, {-1, 2}, {0, 1}}},
+		},
+	}
+}
+
+func NewZTetro() *Tetromino {
+	return &Tetromino{
+		Points: [4]Point{
+			{3, 0},
+			{4, 0},
+			{4, 1},
+			{5, 1},
+		},
+		rotationRules: []rotationRule{
+			{dirs: [4]dir{{2, -1}, {1, 0}, {0, -1}, {-1, 0}}},
+			{dirs: [4]dir{{-2, 1}, {-1, 0}, {0, 1}, {1, 0}}},
+		},
+	}
+}
+
+func NewLTetro() *Tetromino {
+	return &Tetromino{
+		Points: [4]Point{
+			{4, 0},
+			{5, 0},
+			{6, 0},
+			{4, 1},
+		},
+		rotationRules: []rotationRule{
+			{dirs: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {2, 0}}},
+			{dirs: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {0, -2}}},
+			{dirs: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {-2, 0}}},
+			{dirs: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {0, 2}}},
+		},
+	}
+}
+
+func NewJTetro() *Tetromino {
+	return &Tetromino{
+		Points: [4]Point{
+			{4, 0},
+			{5, 0},
+			{6, 0},
+			{6, 1},
+		},
+		rotationRules: []rotationRule{
+			{dirs: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {0, -2}}},
+			{dirs: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {-2, 0}}},
+			{dirs: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {0, 2}}},
+			{dirs: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {2, 0}}},
+		},
+	}
+}
+
 func (t *Tetromino) Rotate() {
 	rule := t.rotationRules[t.rotationPos]
 

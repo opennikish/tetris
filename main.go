@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -20,10 +21,10 @@ func main() {
 
 	term := terminal.NewTerminal(os.Stdin, os.Stdout, exec_)
 	app := NewApp(
-		game.NewGameplay(),
+		game.NewGameplay(func(n int) int { return rand.IntN(n) }),
 		term,
 		tui.NewPlayfieldRenderer(term, 0, 0),
-		NewRealTicker(500*time.Millisecond),
+		NewRealTicker(500*time.Millisecond),		
 	)
 
 	if err := app.Start(ctx); err != nil {

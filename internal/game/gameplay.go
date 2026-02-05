@@ -93,11 +93,21 @@ func (g *Gameplay) Field() *Playfield {
 }
 
 func (g *Gameplay) nextTetro() *Tetromino {
-	switch g.rand(2) { // todo: make 7 when all tetromino implemented
+	switch g.rand(7) {
 	case 0:
 		return NewTTetro()
 	case 1:
 		return NewITetro()
+	case 2:
+		return NewOTetro()
+	case 3:
+		return NewSTetro()
+	case 4:
+		return NewZTetro()
+	case 5:
+		return NewLTetro()
+	case 6:
+		return NewJTetro()
 	}
 	panic("should resolve tetromino")
 }
