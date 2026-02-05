@@ -15,7 +15,7 @@ type Tetromino struct {
 	Points        [4]Point
 }
 
-func NewPinTetro() *Tetromino {
+func NewTTetro() *Tetromino {
 	return &Tetromino{
 		Points: [4]Point{
 			{4, 0},
@@ -43,8 +43,6 @@ func NewITetro() *Tetromino {
 		rotationRules: []rotationRule{
 			{dirs: [4]dir{{2, -1}, {1, 0}, {0, 1}, {-1, 2}}},
 			{dirs: [4]dir{{-2, 1}, {-1, 0}, {0, -1}, {1, -2}}},
-			// {dirs: [4]dir{{2, -1}, {1, 0}, {0, 1}, {-1, 2}}},
-			// {dirs: [4]dir{{-2, 1}, {-1, 0}, {0, -1}, {1, -2}}},
 		},
 	}
 }
