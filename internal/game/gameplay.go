@@ -21,12 +21,14 @@ func (c Command) String() string {
 }
 
 type Gameplay struct {
+	rand      func(n int) int
 	playfield *Playfield
 	currTetro *Tetromino
 }
 
-func NewGameplay() *Gameplay {
+func NewGameplay(rand func(n int) int) *Gameplay {
 	gp := &Gameplay{
+		rand:      rand,
 		playfield: NewPlayfield(10, 20),
 	}
 	gp.currTetro = gp.nextTetro()
@@ -91,7 +93,13 @@ func (g *Gameplay) Field() *Playfield {
 }
 
 func (g *Gameplay) nextTetro() *Tetromino {
-	return NewPinTetro()
+	switch g.rand(2) { // todo: make 7 when all tetromino implemented
+	case 0:
+		return NewTTetro()
+	case 1:
+		return NewITetro()
+	}
+	panic("should resolve tetromino")
 }
 
 type Event interface {
