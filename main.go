@@ -24,7 +24,7 @@ func main() {
 		game.NewGameplay(func(n int) int { return rand.IntN(n) }),
 		term,
 		tui.NewPlayfieldRenderer(term, 0, 0),
-		NewRealTicker(500*time.Millisecond),		
+		NewRealTicker(500*time.Millisecond),
 	)
 
 	if err := app.Start(ctx); err != nil {
@@ -111,9 +111,7 @@ func (a *App) onTick() {
 	log("tick: %d", a.tickCount)
 	a.tickCount++
 
-	if !a.gameplay.Field().IsHidden(a.gameplay.CurrentTetromino()) {
-		a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellEmpty)
-	}
+	a.renderer.DrawTetro(a.gameplay.CurrentTetromino(), game.CellEmpty)
 
 	events := a.gameplay.Update()
 
