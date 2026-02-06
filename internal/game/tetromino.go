@@ -18,16 +18,16 @@ type Tetromino struct {
 func NewTTetro() *Tetromino {
 	return &Tetromino{
 		Points: [4]Point{
+			{3, 0},
 			{4, 0},
-			{3, 1},
+			{5, 0},
 			{4, 1},
-			{5, 1},
 		},
 		rotationRules: []rotationRule{
-			{dirs: [4]dir{{1, 1}, {1, -1}, {0, 0}, {-1, 1}}},
-			{dirs: [4]dir{{-1, 1}, {1, 1}, {0, 0}, {-1, -1}}},
-			{dirs: [4]dir{{-1, -1}, {-1, 1}, {0, 0}, {1, -1}}},
-			{dirs: [4]dir{{1, -1}, {-1, -1}, {0, 0}, {1, 1}}},
+			{dirs: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {1, -1}}},
+			{dirs: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {-1, -1}}},
+			{dirs: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {-1, 1}}},
+			{dirs: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {1, 1}}},
 		},
 	}
 }
@@ -94,10 +94,10 @@ func NewZTetro() *Tetromino {
 func NewLTetro() *Tetromino {
 	return &Tetromino{
 		Points: [4]Point{
+			{3, 0},
 			{4, 0},
 			{5, 0},
-			{6, 0},
-			{4, 1},
+			{5, 1},
 		},
 		rotationRules: []rotationRule{
 			{dirs: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {2, 0}}},
@@ -111,10 +111,10 @@ func NewLTetro() *Tetromino {
 func NewJTetro() *Tetromino {
 	return &Tetromino{
 		Points: [4]Point{
+			{3, 0},
 			{4, 0},
 			{5, 0},
-			{6, 0},
-			{6, 1},
+			{5, 1},
 		},
 		rotationRules: []rotationRule{
 			{dirs: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {0, -2}}},
