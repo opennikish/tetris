@@ -97,7 +97,7 @@ func NewLTetro() *Tetromino {
 			{3, 0},
 			{4, 0},
 			{5, 0},
-			{5, 1},
+			{3, 1},
 		},
 		rotationRules: []rotationRule{
 			{dirs: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {2, 0}}},
