@@ -1,89 +1,110 @@
 package game
 
 import (
+	"strings"
 	"testing"
 )
 
 func TestTMoveDown(t *testing.T) {
 	tetro := NewTTetro()
+	t.Logf("curr:\n%s\n", toString(tetro))
 
-	tetro.MoveVert(3)
-	expected := [4]Point{
-		{4, 3},
-		{3, 4},
-		{4, 4},
-		{5, 4},
-	}
+	tetro.MoveVert(1)
+	expected := strings.TrimSpace(`
+..........
+...###....
+....#.....
+..........
+`)
 
-	eq(t, expected, tetro.Points)
+	eq(t, expected, toString(tetro))
 }
 
 func TestTMoveRight(t *testing.T) {
 	tetro := NewTTetro()
+	t.Logf("curr:\n%s\n", toString(tetro))
 
-	tetro.MoveHoriz(3)
-	expected := [4]Point{
-		{7, 0},
-		{6, 1},
-		{7, 1},
-		{8, 1},
-	}
+	tetro.MoveHoriz(1)
+	expected := strings.TrimSpace(`
+....###...
+.....#....
+..........
+..........
+`)
 
-	eq(t, expected, tetro.Points)
+	eq(t, expected, toString(tetro))
 }
 
 func TestTMoveLeft(t *testing.T) {
 	tetro := NewTTetro()
+	t.Logf("curr:\n%s\n", toString(tetro))
 
-	tetro.MoveHoriz(-3)
-	expected := [4]Point{
-		{1, 0},
-		{0, 1},
-		{1, 1},
-		{2, 1},
-	}
+	tetro.MoveHoriz(-1)
+	expected := strings.TrimSpace(`
+..###.....
+...#......
+..........
+..........
+`)
 
-	eq(t, expected, tetro.Points)
+	eq(t, expected, toString(tetro))
 }
 
 func TestTRotate(t *testing.T) {
 	tetro := NewTTetro()
-	expected := [][4]Point{
-		{
-			{5, 1},
-			{4, 0},
-			{4, 1},
-			{4, 2},
-		},
-		{
-			{4, 2},
-			{5, 1},
-			{4, 1},
-			{3, 1},
-		},
-		{
-			{3, 1},
-			{4, 2},
-			{4, 1},
-			{4, 0},
-		},
-		{
-			{4, 0},
-			{3, 1},
-			{4, 1},
-			{5, 1},
-		},
+	tetro.MoveVert(1)
+	expected := []string{
+		strings.TrimSpace(`
+....#.....
+....##....
+....#.....
+..........
+`),
+		strings.TrimSpace(`
+....#.....
+...###....
+..........
+..........
+`),
+		strings.TrimSpace(`
+....#.....
+...##.....
+....#.....
+..........
+`),
+		strings.TrimSpace(`
+..........
+...###....
+....#.....
+..........
+`),
 	}
 
-	for _, points := range expected {
-		t.Logf("curr: %v\n", tetro.Points)
+	for _, exp := range expected {
+		t.Logf("\ncurr: %v\n", tetro.Points)
 		tetro.Rotate()
-		eq(t, points, tetro.Points)
+		eq(t, exp, toString(tetro))
 	}
 }
 
 func eq[T comparable](t *testing.T, expected, actual T) {
 	if expected != actual {
-		t.Fatalf("expected: %v got: %v", expected, actual)
+		t.Fatalf("\n--- expected:\n%v\n--- got:\n%v", expected, actual)
 	}
+}
+
+func toString(tetro *Tetromino) string {
+	field := []byte(strings.TrimSpace(`
+..........
+..........
+..........
+..........
+`))
+
+	for _, p := range tetro.Points {
+		i := 11*p.Y + p.X // 11 is field width + \n
+		field[i] = '#'
+	}
+
+	return string(field)
 }
