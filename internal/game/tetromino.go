@@ -6,7 +6,7 @@ type dir struct {
 	x, y int
 }
 type rotationRule struct {
-	dirs [4]dir
+	deltas [4]dir
 }
 
 type Tetromino struct {
@@ -24,10 +24,10 @@ func NewTTetro() *Tetromino {
 			{4, 1},
 		},
 		rotationRules: []rotationRule{
-			{dirs: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {1, -1}}},
-			{dirs: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {-1, -1}}},
-			{dirs: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {-1, 1}}},
-			{dirs: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {1, 1}}},
+			{deltas: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {1, -1}}},
+			{deltas: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {-1, -1}}},
+			{deltas: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {-1, 1}}},
+			{deltas: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {1, 1}}},
 		},
 	}
 }
@@ -41,8 +41,8 @@ func NewITetro() *Tetromino {
 			{6, 0},
 		},
 		rotationRules: []rotationRule{
-			{dirs: [4]dir{{2, -1}, {1, 0}, {0, 1}, {-1, 2}}},
-			{dirs: [4]dir{{-2, 1}, {-1, 0}, {0, -1}, {1, -2}}},
+			{deltas: [4]dir{{2, -1}, {1, 0}, {0, 1}, {-1, 2}}},
+			{deltas: [4]dir{{-2, 1}, {-1, 0}, {0, -1}, {1, -2}}},
 		},
 	}
 }
@@ -56,7 +56,7 @@ func NewOTetro() *Tetromino {
 			{5, 1},
 		},
 		rotationRules: []rotationRule{
-			{dirs: [4]dir{{0, 0}, {0, 0}, {0, 0}, {0, 0}}},
+			{deltas: [4]dir{{0, 0}, {0, 0}, {0, 0}, {0, 0}}},
 		},
 	}
 }
@@ -70,8 +70,8 @@ func NewSTetro() *Tetromino {
 			{4, 1},
 		},
 		rotationRules: []rotationRule{
-			{dirs: [4]dir{{1, 0}, {0, 1}, {1, -2}, {0, -1}}},
-			{dirs: [4]dir{{-1, 0}, {0, -1}, {-1, 2}, {0, 1}}},
+			{deltas: [4]dir{{1, 0}, {0, 1}, {1, -2}, {0, -1}}},
+			{deltas: [4]dir{{-1, 0}, {0, -1}, {-1, 2}, {0, 1}}},
 		},
 	}
 }
@@ -85,8 +85,8 @@ func NewZTetro() *Tetromino {
 			{5, 1},
 		},
 		rotationRules: []rotationRule{
-			{dirs: [4]dir{{2, -1}, {1, 0}, {0, -1}, {-1, 0}}},
-			{dirs: [4]dir{{-2, 1}, {-1, 0}, {0, 1}, {1, 0}}},
+			{deltas: [4]dir{{2, -1}, {1, 0}, {0, -1}, {-1, 0}}},
+			{deltas: [4]dir{{-2, 1}, {-1, 0}, {0, 1}, {1, 0}}},
 		},
 	}
 }
@@ -100,10 +100,10 @@ func NewLTetro() *Tetromino {
 			{3, 1},
 		},
 		rotationRules: []rotationRule{
-			{dirs: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {2, 0}}},
-			{dirs: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {0, -2}}},
-			{dirs: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {-2, 0}}},
-			{dirs: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {0, 2}}},
+			{deltas: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {2, 0}}},
+			{deltas: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {0, -2}}},
+			{deltas: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {-2, 0}}},
+			{deltas: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {0, 2}}},
 		},
 	}
 }
@@ -117,10 +117,10 @@ func NewJTetro() *Tetromino {
 			{5, 1},
 		},
 		rotationRules: []rotationRule{
-			{dirs: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {0, -2}}},
-			{dirs: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {-2, 0}}},
-			{dirs: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {0, 2}}},
-			{dirs: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {2, 0}}},
+			{deltas: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {0, -2}}},
+			{deltas: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {-2, 0}}},
+			{deltas: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {0, 2}}},
+			{deltas: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {2, 0}}},
 		},
 	}
 }
@@ -129,8 +129,8 @@ func (t *Tetromino) Rotate() {
 	rule := t.rotationRules[t.rotationPos]
 
 	for i := 0; i < len(t.Points); i += 1 {
-		t.Points[i].X += rule.dirs[i].x
-		t.Points[i].Y += rule.dirs[i].y
+		t.Points[i].X += rule.deltas[i].x
+		t.Points[i].Y += rule.deltas[i].y
 	}
 
 	t.rotationPos = (t.rotationPos + 1) % len(t.rotationRules)
