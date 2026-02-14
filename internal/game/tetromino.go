@@ -2,16 +2,16 @@ package game
 
 type Point struct{ X, Y int }
 
-type dir struct {
+type vec struct {
 	x, y int
 }
-type rotationRule struct {
-	deltas [4]dir
+type rotationStep struct {
+	deltas [4]vec
 }
 
 type Tetromino struct {
 	rotationPos   int
-	rotationRules []rotationRule
+	rotationSteps []rotationStep
 	Points        [4]Point
 }
 
@@ -23,11 +23,11 @@ func NewTTetro() *Tetromino {
 			{5, 0},
 			{4, 1},
 		},
-		rotationRules: []rotationRule{
-			{deltas: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {1, -1}}},
-			{deltas: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {-1, -1}}},
-			{deltas: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {-1, 1}}},
-			{deltas: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {1, 1}}},
+		rotationSteps: []rotationStep{
+			{deltas: [4]vec{{1, 1}, {0, 0}, {-1, -1}, {1, -1}}},
+			{deltas: [4]vec{{1, -1}, {0, 0}, {-1, 1}, {-1, -1}}},
+			{deltas: [4]vec{{-1, -1}, {0, 0}, {1, 1}, {-1, 1}}},
+			{deltas: [4]vec{{-1, 1}, {0, 0}, {1, -1}, {1, 1}}},
 		},
 	}
 }
@@ -40,9 +40,9 @@ func NewITetro() *Tetromino {
 			{5, 0},
 			{6, 0},
 		},
-		rotationRules: []rotationRule{
-			{deltas: [4]dir{{2, -1}, {1, 0}, {0, 1}, {-1, 2}}},
-			{deltas: [4]dir{{-2, 1}, {-1, 0}, {0, -1}, {1, -2}}},
+		rotationSteps: []rotationStep{
+			{deltas: [4]vec{{2, -1}, {1, 0}, {0, 1}, {-1, 2}}},
+			{deltas: [4]vec{{-2, 1}, {-1, 0}, {0, -1}, {1, -2}}},
 		},
 	}
 }
@@ -55,8 +55,8 @@ func NewOTetro() *Tetromino {
 			{4, 1},
 			{5, 1},
 		},
-		rotationRules: []rotationRule{
-			{deltas: [4]dir{{0, 0}, {0, 0}, {0, 0}, {0, 0}}},
+		rotationSteps: []rotationStep{
+			{deltas: [4]vec{{0, 0}, {0, 0}, {0, 0}, {0, 0}}},
 		},
 	}
 }
@@ -69,9 +69,9 @@ func NewSTetro() *Tetromino {
 			{3, 1},
 			{4, 1},
 		},
-		rotationRules: []rotationRule{
-			{deltas: [4]dir{{1, 0}, {0, 1}, {1, -2}, {0, -1}}},
-			{deltas: [4]dir{{-1, 0}, {0, -1}, {-1, 2}, {0, 1}}},
+		rotationSteps: []rotationStep{
+			{deltas: [4]vec{{1, 0}, {0, 1}, {1, -2}, {0, -1}}},
+			{deltas: [4]vec{{-1, 0}, {0, -1}, {-1, 2}, {0, 1}}},
 		},
 	}
 }
@@ -84,9 +84,9 @@ func NewZTetro() *Tetromino {
 			{4, 1},
 			{5, 1},
 		},
-		rotationRules: []rotationRule{
-			{deltas: [4]dir{{2, -1}, {1, 0}, {0, -1}, {-1, 0}}},
-			{deltas: [4]dir{{-2, 1}, {-1, 0}, {0, 1}, {1, 0}}},
+		rotationSteps: []rotationStep{
+			{deltas: [4]vec{{2, -1}, {1, 0}, {0, -1}, {-1, 0}}},
+			{deltas: [4]vec{{-2, 1}, {-1, 0}, {0, 1}, {1, 0}}},
 		},
 	}
 }
@@ -99,11 +99,11 @@ func NewLTetro() *Tetromino {
 			{5, 0},
 			{3, 1},
 		},
-		rotationRules: []rotationRule{
-			{deltas: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {2, 0}}},
-			{deltas: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {0, -2}}},
-			{deltas: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {-2, 0}}},
-			{deltas: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {0, 2}}},
+		rotationSteps: []rotationStep{
+			{deltas: [4]vec{{1, 1}, {0, 0}, {-1, -1}, {2, 0}}},
+			{deltas: [4]vec{{1, -1}, {0, 0}, {-1, 1}, {0, -2}}},
+			{deltas: [4]vec{{-1, -1}, {0, 0}, {1, 1}, {-2, 0}}},
+			{deltas: [4]vec{{-1, 1}, {0, 0}, {1, -1}, {0, 2}}},
 		},
 	}
 }
@@ -116,24 +116,24 @@ func NewJTetro() *Tetromino {
 			{5, 0},
 			{5, 1},
 		},
-		rotationRules: []rotationRule{
-			{deltas: [4]dir{{1, 1}, {0, 0}, {-1, -1}, {0, -2}}},
-			{deltas: [4]dir{{1, -1}, {0, 0}, {-1, 1}, {-2, 0}}},
-			{deltas: [4]dir{{-1, -1}, {0, 0}, {1, 1}, {0, 2}}},
-			{deltas: [4]dir{{-1, 1}, {0, 0}, {1, -1}, {2, 0}}},
+		rotationSteps: []rotationStep{
+			{deltas: [4]vec{{1, 1}, {0, 0}, {-1, -1}, {0, -2}}},
+			{deltas: [4]vec{{1, -1}, {0, 0}, {-1, 1}, {-2, 0}}},
+			{deltas: [4]vec{{-1, -1}, {0, 0}, {1, 1}, {0, 2}}},
+			{deltas: [4]vec{{-1, 1}, {0, 0}, {1, -1}, {2, 0}}},
 		},
 	}
 }
 
 func (t *Tetromino) Rotate() {
-	rule := t.rotationRules[t.rotationPos]
+	rule := t.rotationSteps[t.rotationPos]
 
 	for i := 0; i < len(t.Points); i += 1 {
 		t.Points[i].X += rule.deltas[i].x
 		t.Points[i].Y += rule.deltas[i].y
 	}
 
-	t.rotationPos = (t.rotationPos + 1) % len(t.rotationRules)
+	t.rotationPos = (t.rotationPos + 1) % len(t.rotationSteps)
 }
 
 func (t *Tetromino) MoveVert(dir int) {
@@ -151,7 +151,7 @@ func (t *Tetromino) MoveHoriz(dir int) {
 func (t *Tetromino) Clone() *Tetromino {
 	return &Tetromino{
 		Points:        t.Points, // arrays are values
-		rotationRules: t.rotationRules,
+		rotationSteps: t.rotationSteps,
 		rotationPos:   t.rotationPos,
 	}
 }
