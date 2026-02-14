@@ -3,6 +3,8 @@
 An implementation of the Tetris game, originally created by Alexey Pajitnov.
 This version intentionally mirrors the visual style and esthetic of the original 1984 release, using bracket-based graphics.
 
+Original rotation system is used.
+
 Intentionaly has zero dependencies.
 
 ### Dev
